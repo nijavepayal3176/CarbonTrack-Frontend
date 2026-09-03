@@ -1044,15 +1044,17 @@ const Leaderboard = () => {
                   },
                 }}
               >
-                <Stack
-                  direction="row"
-                  spacing={1.5}
-                  alignItems="center"
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                  }}
-                >
+
+<Stack
+  direction="row"
+  spacing={1.5}
+  sx={{
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+  }}
+>
+
                   <Avatar
                     src={
                       currentUser.avatar ||

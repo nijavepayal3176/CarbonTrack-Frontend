@@ -17,8 +17,6 @@ import {
   CardContent,
   Divider,
   IconButton,
-  MenuItem,
-  Select,
   Snackbar,
   Stack,
   Switch,
@@ -269,13 +267,14 @@ const Settings = () => {
     >
       {/* HEADER */}
 
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1.5}
-        sx={{ mb: 1 }}
-      >
-        <IconButton
+<Stack
+  direction="row"
+  spacing={1.5}
+  sx={{
+    mb: 1,
+    alignItems: "center",
+  }}
+>        <IconButton
           onClick={() =>
             navigate("/dashboard")
           }
@@ -368,13 +367,14 @@ const Settings = () => {
               },
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ mb: 2.5 }}
-            >
-              <Box
+<Stack
+  direction="row"
+  spacing={1.5}
+  sx={{
+    mb: 2.5,
+    alignItems: "center",
+  }}
+>              <Box
                 sx={{
                   width: 42,
                   height: 42,
@@ -466,7 +466,14 @@ const Settings = () => {
           }}
         >
           <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+<Stack
+  direction="row"
+  spacing={1.5}
+  sx={{
+    mb: 2,
+    alignItems: "center",
+  }}
+>
               <Box
                 sx={{
                   width: 42,
@@ -530,13 +537,14 @@ const Settings = () => {
               },
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.5}
-              alignItems="center"
-              sx={{ mb: 2.5 }}
-            >
-              <Box
+<Stack
+  direction="row"
+  spacing={1.5}
+  sx={{
+    mb: 2.5,
+    alignItems: "center",
+  }}
+>              <Box
                 sx={{
                   width: 42,
                   height: 42,
@@ -585,18 +593,23 @@ const Settings = () => {
 
             <Divider sx={{ mb: 2 }} />
 
+
+
+
             <Stack
-              direction={{
-                xs: "column",
-                sm: "row",
-              }}
-              justifyContent="space-between"
-              alignItems={{
-                xs: "flex-start",
-                sm: "center",
-              }}
-              spacing={2}
-            >
+  direction={{
+    xs: "column",
+    sm: "row",
+  }}
+  spacing={2}
+  sx={{
+    justifyContent: "space-between",
+    alignItems: {
+      xs: "flex-start",
+      sm: "center",
+    },
+  }}
+>
               <Box>
                 <Typography
                   sx={{
@@ -662,11 +675,13 @@ const Settings = () => {
 
         <Stack
           direction="row"
-          justifyContent="flex-end"
+
           sx={{
             mt: 3,
             mb: 2,
-          }}
+              justifyContent: "flex-end",
+
+}}          
         >
           <Button
             variant="contained"

@@ -381,7 +381,9 @@ const EcoTips = () => {
           <Stack
             direction="row"
             spacing={1.5}
-            alignItems="flex-start"
+            sx={{
+              alignItems: "flex-start",
+            }}
           >
             {renderTipIcon(tip)}
 
@@ -394,9 +396,11 @@ const EcoTips = () => {
               <Stack
                 direction="row"
                 spacing={0.7}
-                flexWrap="wrap"
+                sx={{
+                  mb: 1,
+                  flexWrap: "wrap",
+                }}
                 useFlexGap
-                sx={{ mb: 1 }}
               >
                 <Chip
                   label={tip.category}
@@ -502,12 +506,14 @@ const EcoTips = () => {
                 xs: "column",
                 sm: "row",
               }}
-              justifyContent="space-between"
-              alignItems={{
-                xs: "stretch",
-                sm: "flex-end",
-              }}
               spacing={1.5}
+              sx={{
+                justifyContent: "space-between",
+                alignItems: {
+                  xs: "stretch",
+                  sm: "flex-end",
+                },
+              }}
             >
               <Box>
                 <Stack
@@ -666,7 +672,9 @@ const EcoTips = () => {
       >
         <Stack
           spacing={2}
-          alignItems="center"
+          sx={{
+            alignItems: "center",
+          }}
         >
           <Box
             sx={{
@@ -800,17 +808,21 @@ const EcoTips = () => {
                 lg: "row",
               }}
               spacing={3}
-              justifyContent="space-between"
-              alignItems={{
-                xs: "stretch",
-                lg: "center",
+              sx={{
+                justifyContent: "space-between",
+                alignItems: {
+                  xs: "stretch",
+                  lg: "center",
+                },
               }}
             >
               <Box sx={{ minWidth: 0 }}>
                 <Stack
                   direction="row"
                   spacing={1.4}
-                  alignItems="center"
+                  sx={{
+                    alignItems: "center",
+                  }}
                 >
                   <Box
                     sx={{
@@ -1145,7 +1157,9 @@ const EcoTips = () => {
                   <Stack
                     direction="row"
                     spacing={1.4}
-                    alignItems="center"
+                    sx={{
+                      alignItems: "center",
+                    }}
                   >
                     <Box
                       sx={{
@@ -1280,9 +1294,11 @@ const EcoTips = () => {
                   md: "row",
                 }}
                 spacing={2.3}
-                alignItems={{
-                  xs: "stretch",
-                  md: "center",
+                sx={{
+                  alignItems: {
+                    xs: "stretch",
+                    md: "center",
+                  },
                 }}
               >
                 <Box>
@@ -1301,9 +1317,11 @@ const EcoTips = () => {
                   <Stack
                     direction="row"
                     spacing={0.8}
-                    alignItems="center"
-                    flexWrap="wrap"
                     useFlexGap
+                    sx={{
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                    }}
                   >
                     <Chip
                       icon={
@@ -1520,7 +1538,9 @@ const EcoTips = () => {
               <Stack
                 direction="row"
                 spacing={0.9}
-                alignItems="center"
+                sx={{
+                  alignItems: "center",
+                }}
               >
                 <Box
                   sx={{
@@ -1724,13 +1744,15 @@ const EcoTips = () => {
             xs: "column",
             sm: "row",
           }}
-          justifyContent="space-between"
-          alignItems={{
-            xs: "flex-start",
-            sm: "flex-end",
-          }}
           spacing={1.2}
-          mb={2}
+          sx={{
+            mb: 2,
+            justifyContent: "space-between",
+            alignItems: {
+              xs: "flex-start",
+              sm: "flex-end",
+            },
+          }}
         >
           <Box>
             <Typography
@@ -1904,9 +1926,11 @@ const EcoTips = () => {
                 sm: "row",
               }}
               spacing={2}
-              alignItems={{
-                xs: "stretch",
-                sm: "center",
+              sx={{
+                alignItems: {
+                  xs: "stretch",
+                  sm: "center",
+                },
               }}
             >
               <Avatar
@@ -1930,8 +1954,10 @@ const EcoTips = () => {
               >
                 <Stack
                   direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                 >
                   <Box>
                     <Typography
@@ -2019,12 +2045,12 @@ const EcoTips = () => {
         <Stack
           direction="row"
           spacing={0.8}
-          justifyContent="center"
-          alignItems="center"
           sx={{
             mt: 2.5,
             mb: 1,
             px: 1,
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
           <EmojiEventsOutlinedIcon

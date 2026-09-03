@@ -311,20 +311,15 @@ export const fetchNotificationData =
           ? backendData.notifications
           : [];
 
-      const notifications =
-        sortNotifications(
-          rawNotifications
-            .map(
-              normalizeNotification
-            )
-            .filter(
-              (
-                item
-              ): item is CarbonNotification =>
-                Boolean(item)
-            )
-        );
-
+const notifications =
+  rawNotifications
+    .map(normalizeNotification)
+    .filter(
+      (
+        item: CarbonNotification | null
+      ): item is CarbonNotification =>
+        Boolean(item)
+    );
       /*
        * Backend explicitly calculates unreadCount.
        * Use it as the primary value.
@@ -343,10 +338,9 @@ export const fetchNotificationData =
               backendUnreadCount
             )
           : notifications.filter(
-              (notification) =>
-                notification.read !==
-                true
-            ).length;
+  (notification: CarbonNotification) =>
+    notification.read !== true
+).length;
 
       saveLocalNotifications(
         notifications

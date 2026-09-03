@@ -2498,12 +2498,16 @@ const Reports = () => {
               }}
             >
               <Box>
-                <Stack
-                  direction="row"
-                  spacing={0.8}
-                  alignItems="center"
-                  sx={{ mb: 0.6 }}
-                >
+
+<Stack
+  direction="row"
+  spacing={0.8}
+  sx={{
+    mb: 0.6,
+    alignItems: "center",
+  }}
+>
+
                   <Box
                     sx={{
                       width: 7,

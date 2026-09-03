@@ -214,13 +214,13 @@ const Profile = () => {
     return "Getting Started";
   }, [sustainabilityScore]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 85) return "#16804F";
-    if (score >= 70) return "#2E9B68";
-    if (score >= 50) return "#D28A19";
-    if (score >= 30) return "#E87524";
-    return "#7B8794";
-  };
+  // const getScoreColor = (score: number) => {
+  //   if (score >= 85) return "#16804F";
+  //   if (score >= 70) return "#2E9B68";
+  //   if (score >= 50) return "#D28A19";
+  //   if (score >= 30) return "#E87524";
+  //   return "#7B8794";
+  // };
 
   const getInitials = (value: string): string => {
     const trimmed = value.trim();

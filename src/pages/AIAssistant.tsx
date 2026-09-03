@@ -933,12 +933,13 @@ const AIAssistant = () => {
             },
           }}
         >
-          <Stack
-            direction="row"
-            alignItems="center"
-            spacing={1.2}
-          >
-            <Box
+<Stack
+  direction="row"
+  spacing={1.2}
+  sx={{
+    alignItems: "center",
+  }}
+>            <Box
               sx={{
                 width: 38,
                 height: 38,
@@ -1054,12 +1055,13 @@ const AIAssistant = () => {
               zIndex: 5,
             }}
           >
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={1.25}
-            >
-              <Box
+<Stack
+  direction="row"
+  spacing={1.25}
+  sx={{
+    alignItems: "center",
+  }}
+>              <Box
                 sx={{
                   position: "relative",
                   flexShrink: 0,
@@ -1110,12 +1112,13 @@ const AIAssistant = () => {
                   flex: 1,
                 }}
               >
-                <Stack
-                  direction="row"
-                  alignItems="center"
-                  spacing={0.8}
-                >
-                  <Typography
+<Stack
+  direction="row"
+  spacing={0.8}
+  sx={{
+    alignItems: "center",
+  }}
+>                  <Typography
                     sx={{
                       fontSize: {
                         xs: "0.9rem",
@@ -1290,14 +1293,13 @@ const AIAssistant = () => {
                   px: 2,
                 }}
               >
-                <Stack
-                  alignItems="center"
-                  textAlign="center"
-                  sx={{
-                    maxWidth: 650,
-                  }}
-                >
-                  <Box
+<Stack
+  sx={{
+    maxWidth: 650,
+    alignItems: "center",
+    textAlign: "center",
+  }}
+>                  <Box
                     sx={{
                       position:
                         "relative",
@@ -1416,16 +1418,19 @@ const AIAssistant = () => {
                     reduction goals.
                   </Typography>
 
-                  <Stack
-                    direction="row"
-                    spacing={0.8}
-                    flexWrap="wrap"
-                    useFlexGap
-                    justifyContent="center"
-                    sx={{
-                      mt: 2.2,
-                    }}
-                  >
+
+
+<Stack
+  direction="row"
+  spacing={0.8}
+  useFlexGap
+  sx={{
+    mt: 2.2,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  }}
+>
+
                     {[
                       "🌱 Footprint",
                       "🚗 Transport",
@@ -1457,17 +1462,21 @@ const AIAssistant = () => {
                     ))}
                   </Stack>
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    flexWrap="wrap"
-                    useFlexGap
-                    justifyContent="center"
-                    sx={{
-                      mt: 2.2,
-                      maxWidth: 620,
-                    }}
-                  >
+
+
+<Stack
+  direction="row"
+  spacing={1}
+  useFlexGap
+  sx={{
+    mt: 2.2,
+    maxWidth: 620,
+    flexWrap: "wrap",
+    justifyContent: "center",
+  }}
+>
+
+
                     {quickActions
                       .slice(0, 3)
                       .map(
@@ -1801,12 +1810,13 @@ const AIAssistant = () => {
                           "1px solid #E1EAE4",
                       }}
                     >
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                        spacing={1}
-                      >
-                        <Box
+<Stack
+  direction="row"
+  spacing={1}
+  sx={{
+    alignItems: "center",
+  }}
+>                        <Box
                           sx={{
                             display:
                               "flex",

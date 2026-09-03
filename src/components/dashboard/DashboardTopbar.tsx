@@ -1,4 +1,3 @@
-
 import {
   Avatar,
   Box,
@@ -74,9 +73,6 @@ interface DashboardTopbarProps {
   notificationCount?: number;
 }
 
-const NOTIFICATION_STORAGE_KEY =
-  "carbontrack_notifications";
-
 const DashboardTopbar = ({
   onMobileMenu,
   loading = false,
@@ -109,172 +105,94 @@ const DashboardTopbar = ({
    * =========================================================
    */
 
-  const normalizeNotifications = (
-    value: unknown
-  ): NotificationItem[] => {
-    if (!Array.isArray(value)) {
-      return [];
-    }
-
-    return value
-      .filter(
-        (item): item is Record<string, unknown> =>
-          Boolean(
-            item &&
-              typeof item === "object"
-          )
-      )
-      .map((item, index) => {
-        const seen =
-          typeof item.seen === "boolean"
-            ? item.seen
-            : typeof item.read === "boolean"
-              ? item.read
-              : false;
-
-        return {
-          id:
-            typeof item.id === "string"
-              ? item.id
-              : `notification-${index}-${Date.now()}`,
-
-          title:
-            typeof item.title === "string"
-              ? item.title
-              : "CarbonTrack Update",
-
-          message:
-            typeof item.message === "string"
-              ? item.message
-              : "You have a new CarbonTrack update.",
-
-          seen,
-
-          read:
-            typeof item.read === "boolean"
-              ? item.read
-              : seen,
-
-          createdAt:
-            typeof item.createdAt === "string"
-              ? item.createdAt
-              : new Date().toISOString(),
-
-          type:
-            typeof item.type === "string"
-              ? item.type
-              : "info",
-        };
-      });
-  };
-
   /*
    * A notification is considered seen when either
    * `seen === true` OR `read === true`.
    */
-const isNotificationSeen = (
-  notification: NotificationItem
-) => {
-return (
-  notification.seen === true ||
-  notification.read === true
-);};
-  /*
-   * =========================================================
-   * LOAD NOTIFICATIONS
-   * =========================================================
-   */
-
-const loadNotifications = async () => {
-  try {
-    const result =
-      await fetchNotificationData();
-
-    setNotifications(
-      result.notifications
+  const isNotificationSeen = (
+    notification: NotificationItem
+  ) => {
+    return (
+      notification.seen === true ||
+      notification.read === true
     );
-  } catch (error) {
-    console.error(
-      "CarbonTrack: failed to load notifications",
-      error
-    );
-  }
-};
-
-
-
-  /*
-   * Initial notification load + live updates.
-   */
-useEffect(() => {
-  let mounted = true;
-
-  const load = async () => {
-    try {
-      const result =
-        await fetchNotificationData();
-
-      if (mounted) {
-        setNotifications(
-          result.notifications
-        );
-      }
-    } catch (error) {
-      console.error(
-        "CarbonTrack: notification loading error:",
-        error
-      );
-    }
   };
 
-  load();
-
   /*
-   * Live refresh:
-   * backend-generated notifications become
-   * visible without manually refreshing page.
+   * =========================================================
+   * INITIAL NOTIFICATION LOAD + LIVE UPDATES
+   * =========================================================
    */
-  const intervalId =
-    window.setInterval(
-      load,
-      60000
-    );
 
-  const handleNotificationUpdate =
-    () => {
-      load();
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const result =
+          await fetchNotificationData();
+
+        if (mounted) {
+          setNotifications(
+            result.notifications
+          );
+        }
+      } catch (error) {
+        console.error(
+          "CarbonTrack: notification loading error:",
+          error
+        );
+      }
     };
 
-  window.addEventListener(
-    NOTIFICATIONS_UPDATE_EVENT,
-    handleNotificationUpdate
-  );
+    load();
 
-  window.addEventListener(
-    "storage",
-    handleNotificationUpdate
-  );
+    /*
+     * Live refresh:
+     * backend-generated notifications become
+     * visible without manually refreshing page.
+     */
+    const intervalId =
+      window.setInterval(
+        load,
+        60000
+      );
 
-  return () => {
-    mounted = false;
+    const handleNotificationUpdate =
+      () => {
+        load();
+      };
 
-    window.clearInterval(
-      intervalId
-    );
-
-    window.removeEventListener(
+    window.addEventListener(
       NOTIFICATIONS_UPDATE_EVENT,
       handleNotificationUpdate
     );
 
-    window.removeEventListener(
+    window.addEventListener(
       "storage",
       handleNotificationUpdate
     );
-  };
-}, []);
 
-/*
+    return () => {
+      mounted = false;
+
+      window.clearInterval(
+        intervalId
+      );
+
+      window.removeEventListener(
+        NOTIFICATIONS_UPDATE_EVENT,
+        handleNotificationUpdate
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleNotificationUpdate
+      );
+    };
+  }, []);
+
+  /*
    * =========================================================
    * SAFE NOTIFICATION DATA
    * =========================================================
@@ -305,62 +223,62 @@ useEffect(() => {
    * =========================================================
    */
 
-const markNotificationAsSeen =
-  async (
-    notificationId: string
-  ) => {
-    const success =
-      await markNotificationAsRead(
-        notificationId
+  const markNotificationAsSeen =
+    async (
+      notificationId: string
+    ) => {
+      const success =
+        await markNotificationAsRead(
+          notificationId
+        );
+
+      if (!success) {
+        return;
+      }
+
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) =>
+              notification.id ===
+              notificationId
+                ? {
+                    ...notification,
+                    seen: true,
+                    read: true,
+                  }
+                : notification
+          )
       );
+    };
 
-    if (!success) {
-      return;
-    }
-
-    setNotifications(
-      (previous) =>
-        previous.map(
-          (notification) =>
-            notification.id ===
-            notificationId
-              ? {
-                  ...notification,
-                  seen: true,
-                  read: true,
-                }
-              : notification
-        )
-    );
-  };
-  
   /*
    * =========================================================
    * MARK ALL AS SEEN
    * =========================================================
    */
 
-const markAllNotificationsAsSeen =
-  async () => {
-    const success =
-      await markAllNotificationsAsRead();
+  const markAllNotificationsAsSeen =
+    async () => {
+      const success =
+        await markAllNotificationsAsRead();
 
-    if (!success) {
-      return;
-    }
+      if (!success) {
+        return;
+      }
 
-    setNotifications(
-      (previous) =>
-        previous.map(
-          (notification) => ({
-            ...notification,
-            seen: true,
-            read: true,
-          })
-        )
-    );
-  };
-  
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) => ({
+              ...notification,
+              seen: true,
+              read: true,
+            })
+          )
+      );
+    };
+
   /*
    * =========================================================
    * NOTIFICATION BELL
@@ -968,9 +886,9 @@ const markAllNotificationsAsSeen =
             placeholder="Ask CarbonTrack AI..."
             variant="standard"
             slotProps={{
-             input:{
-              disableUnderline: true,
-             }
+              input: {
+                disableUnderline: true,
+              },
             }}
             sx={{
               minWidth: 0,
@@ -1519,47 +1437,46 @@ const markAllNotificationsAsSeen =
           NOTIFICATION MENU
       ===================================================== */}
 
-<Menu
-  anchorEl={notificationAnchor}
-  open={Boolean(notificationAnchor)}
-  onClose={closeNotificationMenu}
-  anchorOrigin={{
-    vertical: "bottom",
-    horizontal: "right",
-  }}
-  transformOrigin={{
-    vertical: "top",
-    horizontal: "right",
-  }}
-  slotProps={{
-    paper: {
-      sx: {
-        mt: 1,
+      <Menu
+        anchorEl={notificationAnchor}
+        open={Boolean(notificationAnchor)}
+        onClose={closeNotificationMenu}
+        anchorOrigin={{
+          vertical: "bottom",
+          horizontal: "right",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "right",
+        }}
+        slotProps={{
+          paper: {
+            sx: {
+              mt: 1,
 
-        width: {
-          xs: "calc(100vw - 24px)",
-          sm: 370,
-        },
+              width: {
+                xs: "calc(100vw - 24px)",
+                sm: 370,
+              },
 
-        maxWidth: 370,
-        maxHeight: 470,
+              maxWidth: 370,
+              maxHeight: 470,
 
-        borderRadius: 2.8,
+              borderRadius: 2.8,
 
-        border: "1px solid #E3EBE6",
+              border:
+                "1px solid #E3EBE6",
 
-        boxShadow:
-          "0 18px 50px rgba(20,55,38,0.14)",
+              boxShadow:
+                "0 18px 50px rgba(20,55,38,0.14)",
 
-        overflow: "hidden",
+              overflow: "hidden",
 
-        p: 0,
-      },
-    },
-  }}
->
-
-
+              p: 0,
+            },
+          },
+        }}
+      >
         {/* HEADER */}
 
         <Box
@@ -2047,10 +1964,6 @@ const markAllNotificationsAsSeen =
           PROFILE MENU
       ===================================================== */}
 
-      {/* =====================================================
-          PROFILE MENU
-      ===================================================== */}
-
       <Menu
         anchorEl={profileAnchor}
         open={Boolean(profileAnchor)}
@@ -2075,7 +1988,8 @@ const markAllNotificationsAsSeen =
 
               borderRadius: 2.8,
 
-              border: "1px solid #E3EBE6",
+              border:
+                "1px solid #E3EBE6",
 
               background: "#FFFFFF",
 
@@ -2364,7 +2278,7 @@ const markAllNotificationsAsSeen =
           </Box>
         </MenuItem>
       </Menu>
-          </Box>
+    </Box>
   );
 };
 

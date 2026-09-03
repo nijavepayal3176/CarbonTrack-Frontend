@@ -8,13 +8,15 @@ import {
 export default function MuiTest() {
   return (
     <>
-      <Stack
-        direction="row"
-        spacing={2}
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Avatar src="/test.png" />
+<Stack
+  direction="row"
+  spacing={2}
+  sx={{
+    alignItems: "center",
+    justifyContent: "space-between",
+  }}
+>
+          <Avatar src="/test.png" />
 
         <TextField
           label="Test"
