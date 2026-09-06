@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -70,13 +71,18 @@ interface AIResponse {
   message?: string;
 }
 
+interface SpeechRecognitionResultLike {
+  0?: {
+    transcript: string;
+  };
+  isFinal?: boolean;
+}
+
 interface SpeechRecognitionResultEventLike {
+  resultIndex?: number;
   results: {
-    [index: number]: {
-      [index: number]: {
-        transcript: string;
-      };
-    };
+    length?: number;
+    [index: number]: SpeechRecognitionResultLike;
   };
 }
 
@@ -86,6 +92,7 @@ interface SpeechRecognitionLike {
   continuous: boolean;
   start: () => void;
   stop: () => void;
+  abort?: () => void;
   onresult:
     | ((event: SpeechRecognitionResultEventLike) => void)
     | null;
@@ -137,7 +144,21 @@ const quickActions = [
 const createMessageId = () =>
   `${Date.now()}-${Math.random()
     .toString(36)
-    .slice(2, 9)}`;
+    .slice(2, 10)}`;
+
+/* =========================================================
+   NORMALIZE REPEATED SPEECH
+========================================================= */
+
+const normalizeSpeechText = (text: string) => {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(
+      /\b(\w+(?:\s+\w+){0,4})\s+\1\b/gi,
+      "$1"
+    )
+    .trim();
+};
 
 /* =========================================================
    CLEAN AI TEXT
@@ -148,13 +169,17 @@ const cleanAIText = (text: string): string => {
 
   let cleaned = text;
 
-  cleaned = cleaned.replace(/<br\s*\/?>/gi, "\n");
-  cleaned = cleaned.replace(/<\/?p>/gi, "");
+  cleaned = cleaned
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?p>/gi, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">");
 
   const lines = cleaned
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+    .split(/\r?\n/)
+    .map((line) => line.trim());
 
   const hasTable = lines.some(
     (line) =>
@@ -163,11 +188,12 @@ const cleanAIText = (text: string): string => {
   );
 
   if (hasTable) {
-    const filtered = lines.filter((line) => {
-      return !/^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(
-        line
-      );
-    });
+    const filtered = lines.filter(
+      (line) =>
+        !/^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(
+          line
+        )
+    );
 
     cleaned = filtered
       .map((line) => {
@@ -192,6 +218,8 @@ const cleanAIText = (text: string): string => {
         return line;
       })
       .join("\n");
+  } else {
+    cleaned = lines.join("\n");
   }
 
   cleaned = cleaned.replace(
@@ -224,7 +252,7 @@ const renderInline = (
           component="span"
           sx={{
             fontWeight: 800,
-            color: "#193D2A",
+            color: "inherit",
           }}
         >
           {part.slice(2, -2)}
@@ -241,15 +269,19 @@ const renderInline = (
           key={index}
           component="span"
           sx={{
+            display: "inline",
             px: 0.65,
             py: 0.2,
+            mx: 0.1,
             borderRadius: 0.8,
             background: "#EDF4EF",
             color: "#28704A",
+            border: "1px solid #DCE9E0",
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: "0.9em",
-            border: "1px solid #DCE9E0",
+            fontSize: "0.88em",
+            whiteSpace: "pre-wrap",
+            overflowWrap: "anywhere",
           }}
         >
           {part.slice(1, -1)}
@@ -270,13 +302,17 @@ const renderInline = (
 
 /* =========================================================
    AI ANSWER RENDERER
-   CHATGPT STYLE
+   PROFESSIONAL / CHATGPT STYLE
 ========================================================= */
 
 const renderAIAnswer = (
   content: string
 ): ReactNode => {
   const cleaned = cleanAIText(content);
+
+  if (!cleaned) {
+    return null;
+  }
 
   const lines = cleaned.split("\n");
 
@@ -287,53 +323,72 @@ const renderAIAnswer = (
   const flushBullets = () => {
     if (!bulletBuffer.length) return;
 
+    const bullets = [...bulletBuffer];
+
     elements.push(
       <Box
         key={`bullet-group-${elements.length}`}
         sx={{
-          mt: 1,
-          mb: 1,
+          width: "100%",
+          mt: 0.8,
+          mb: 1.1,
+          minWidth: 0,
         }}
       >
-        <Stack spacing={0.85}>
-          {bulletBuffer.map(
+        <Stack
+          spacing={0.8}
+          sx={{
+            width: "100%",
+          }}
+        >
+          {bullets.map(
             (bullet, index) => (
               <Box
-                key={index}
+                key={`${bullet}-${index}`}
                 sx={{
                   display: "flex",
                   alignItems: "flex-start",
-                  gap: {
-                    xs: 0.75,
-                    sm: 0.9,
-                  },
+                  width: "100%",
                   minWidth: 0,
+                  gap: {
+                    xs: 0.8,
+                    sm: 1,
+                  },
                 }}
               >
                 <CheckCircleRoundedIcon
                   sx={{
+                    flexShrink: 0,
+                    mt: "4px",
                     fontSize: {
                       xs: 15,
                       sm: 17,
                     },
-                    color: "#42A96F",
-                    mt: "4px",
-                    flexShrink: 0,
+                    color: "#43A96F",
                   }}
                 />
 
                 <Typography
                   component="div"
                   sx={{
-                    fontSize: "inherit",
-                    lineHeight: 1.75,
-                    color: "inherit",
+                    flex: "1 1 auto",
                     minWidth: 0,
+                    maxWidth: "100%",
+                    fontSize: "inherit",
+                    lineHeight: {
+                      xs: 1.72,
+                      sm: 1.78,
+                    },
+                    color: "inherit",
                     overflowWrap:
                       "anywhere",
+                    wordBreak:
+                      "break-word",
                   }}
                 >
-                  {renderInline(bullet)}
+                  {renderInline(
+                    bullet
+                  )}
                 </Typography>
               </Box>
             )
@@ -371,9 +426,9 @@ const renderAIAnswer = (
     ===================================================== */
 
     if (
-      line.startsWith("### ") ||
+      line.startsWith("# ") ||
       line.startsWith("## ") ||
-      line.startsWith("# ")
+      line.startsWith("### ")
     ) {
       flushBullets();
 
@@ -385,26 +440,31 @@ const renderAIAnswer = (
         <Box
           key={`heading-${index}`}
           sx={{
+            width: "100%",
             mt:
               elements.length > 0
-                ? 1.5
+                ? 1.7
                 : 0,
-            mb: 0.8,
+            mb: 0.9,
+            minWidth: 0,
           }}
         >
           <Typography
+            component="div"
             sx={{
               fontSize: {
-                xs: "0.9rem",
+                xs: "0.91rem",
                 sm: "1rem",
               },
               fontWeight: 800,
               color: "#193D2A",
               lineHeight: 1.4,
               letterSpacing:
-                "-0.15px",
+                "-0.2px",
               overflowWrap:
                 "anywhere",
+              wordBreak:
+                "break-word",
             }}
           >
             {heading}
@@ -412,12 +472,12 @@ const renderAIAnswer = (
 
           <Box
             sx={{
-              width: 28,
+              width: 30,
               height: 2,
+              mt: 0.55,
               borderRadius: 10,
               background:
                 "linear-gradient(90deg,#43AA70,#DCEDE3)",
-              mt: 0.55,
             }}
           />
         </Box>
@@ -443,14 +503,14 @@ const renderAIAnswer = (
           key={`number-${index}`}
           sx={{
             display: "flex",
+            alignItems: "flex-start",
+            width: "100%",
+            minWidth: 0,
             gap: {
               xs: 0.8,
               sm: 1,
             },
-            alignItems:
-              "flex-start",
-            mb: 0.75,
-            minWidth: 0,
+            mb: 0.8,
           }}
         >
           <Box
@@ -463,8 +523,12 @@ const renderAIAnswer = (
                 xs: 22,
                 sm: 24,
               },
+              minWidth: {
+                xs: 22,
+                sm: 24,
+              },
+              mt: "2px",
               borderRadius: "50%",
-              flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -474,11 +538,11 @@ const renderAIAnswer = (
               border:
                 "1px solid #D6EADF",
               fontSize: {
-                xs: "0.64rem",
+                xs: "0.63rem",
                 sm: "0.68rem",
               },
               fontWeight: 800,
-              mt: "2px",
+              flexShrink: 0,
             }}
           >
             {numberedMatch[1]}
@@ -487,11 +551,18 @@ const renderAIAnswer = (
           <Typography
             component="div"
             sx={{
-              fontSize: "inherit",
-              lineHeight: 1.75,
+              flex: "1 1 auto",
               minWidth: 0,
+              maxWidth: "100%",
+              fontSize: "inherit",
+              lineHeight: {
+                xs: 1.72,
+                sm: 1.78,
+              },
               overflowWrap:
                 "anywhere",
+              wordBreak:
+                "break-word",
             }}
           >
             {renderInline(
@@ -526,33 +597,35 @@ const renderAIAnswer = (
     flushBullets();
 
     /* =====================================================
-       IMPORTANT / PRIORITY BOX
+       IMPORTANT / RECOMMENDATION
     ===================================================== */
 
     const lower =
       line.toLowerCase();
 
     const isImportant =
-      lower.includes("important") ||
-      lower.includes("priority") ||
-      lower.includes("best option") ||
-      lower.includes("start with") ||
-      lower.includes("most important") ||
-      lower.includes("recommendation");
+      lower.includes("important:") ||
+      lower.includes("priority:") ||
+      lower.includes("best option:") ||
+      lower.includes("recommendation:") ||
+      lower.includes("most important:") ||
+      lower.includes("start with:");
 
     if (isImportant) {
       elements.push(
         <Box
           key={`important-${index}`}
           sx={{
-            my: 1.15,
+            width: "100%",
+            minWidth: 0,
+            my: 1.1,
             px: {
-              xs: 1.1,
-              sm: 1.4,
+              xs: 1.05,
+              sm: 1.35,
             },
             py: {
-              xs: 1,
-              sm: 1.15,
+              xs: 0.95,
+              sm: 1.1,
             },
             borderRadius: 2,
             background:
@@ -560,35 +633,38 @@ const renderAIAnswer = (
             border:
               "1px solid #DCEDE3",
             display: "flex",
-            alignItems:
-              "flex-start",
+            alignItems: "flex-start",
             gap: {
               xs: 0.75,
               sm: 0.9,
             },
-            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <LightbulbRoundedIcon
             sx={{
+              flexShrink: 0,
+              mt: "2px",
               fontSize: {
                 xs: 17,
                 sm: 19,
               },
               color: "#D49627",
-              mt: "2px",
-              flexShrink: 0,
             }}
           />
 
           <Typography
             component="div"
             sx={{
+              flex: "1 1 auto",
+              minWidth: 0,
+              maxWidth: "100%",
               fontSize: "inherit",
               lineHeight: 1.72,
-              minWidth: 0,
               overflowWrap:
                 "anywhere",
+              wordBreak:
+                "break-word",
             }}
           >
             {renderInline(line)}
@@ -608,6 +684,9 @@ const renderAIAnswer = (
         key={`text-${index}`}
         component="div"
         sx={{
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
           fontSize: "inherit",
           lineHeight: {
             xs: 1.72,
@@ -616,7 +695,11 @@ const renderAIAnswer = (
           color: "inherit",
           overflowWrap:
             "anywhere",
-          mb: 0.35,
+          wordBreak:
+            "break-word",
+          whiteSpace:
+            "pre-wrap",
+          mb: 0.45,
         }}
       >
         {renderInline(line)}
@@ -630,7 +713,9 @@ const renderAIAnswer = (
     <Box
       sx={{
         width: "100%",
+        maxWidth: "100%",
         minWidth: 0,
+        overflow: "visible",
       }}
     >
       {elements}
@@ -671,11 +756,63 @@ const AIAssistant = () => {
       null
     );
 
+  const messagesEndRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
   const [searchParams] =
     useSearchParams();
 
   const hasProcessedURLQuestion =
     useRef(false);
+
+  /* =======================================================
+     IMAGE PREVIEW
+  ======================================================= */
+
+  const imagePreview =
+    useMemo(() => {
+      if (
+        !attachedFile ||
+        !attachedFile.type.startsWith(
+          "image/"
+        )
+      ) {
+        return null;
+      }
+
+      return URL.createObjectURL(
+        attachedFile
+      );
+    }, [attachedFile]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(
+          imagePreview
+        );
+      }
+    };
+  }, [imagePreview]);
+
+  /* =======================================================
+     AUTO SCROLL
+  ======================================================= */
+
+  useEffect(() => {
+    if (!messagesEndRef.current) {
+      return;
+    }
+
+    messagesEndRef.current.scrollIntoView(
+      {
+        behavior: "smooth",
+        block: "end",
+      }
+    );
+  }, [messages, loading]);
 
   /* =======================================================
      ASK AI
@@ -713,9 +850,8 @@ const AIAssistant = () => {
 
     try {
       /*
-       * Existing backend contract is preserved.
-       * The selected file is shown in the UI and its
-       * filename is included in the question.
+       * Existing backend contract preserved.
+       * File selection remains a UI attachment.
        */
 
       const response =
@@ -801,12 +937,17 @@ const AIAssistant = () => {
   }, [searchParams]);
 
   /* =======================================================
-     CLEANUP SPEECH
+     CLEANUP
   ======================================================= */
 
   useEffect(() => {
     return () => {
-      recognitionRef.current?.stop();
+      try {
+        recognitionRef.current?.abort?.();
+        recognitionRef.current?.stop();
+      } catch {
+        // Ignore speech cleanup errors.
+      }
     };
   }, []);
 
@@ -823,7 +964,12 @@ const AIAssistant = () => {
     ) {
       event.preventDefault();
 
-      void askAI();
+      if (
+        !loading &&
+        question.trim()
+      ) {
+        void askAI();
+      }
     }
   };
 
@@ -847,10 +993,6 @@ const AIAssistant = () => {
       );
     }
 
-    /*
-     * Allow selecting the same file again
-     * after removing it.
-     */
     event.target.value = "";
   };
 
@@ -859,19 +1001,22 @@ const AIAssistant = () => {
   ======================================================= */
 
   const removeAttachment = () => {
+    const currentFileName =
+      attachedFile?.name;
+
     setAttachedFile(null);
 
     if (
-      question.startsWith(
-        "Please analyze this file:"
-      )
+      currentFileName &&
+      question.trim() ===
+        `Please analyze this file: ${currentFileName}`
     ) {
       setQuestion("");
     }
   };
 
   /* =======================================================
-     FILE TYPE
+     FILE TYPES
   ======================================================= */
 
   const isImage =
@@ -884,50 +1029,31 @@ const AIAssistant = () => {
     "application/pdf";
 
   /* =======================================================
-     IMAGE PREVIEW URL
-  ======================================================= */
-
-  const imagePreview =
-    isImage && attachedFile
-      ? URL.createObjectURL(
-          attachedFile
-        )
-      : null;
-
-  useEffect(() => {
-    return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(
-          imagePreview
-        );
-      }
-    };
-  }, [imagePreview]);
-
-  /* =======================================================
      MICROPHONE
-     FIXED DUPLICATE TRANSCRIPT BUG
+     PROFESSIONAL DUPLICATE FIX
   ======================================================= */
 
   const handleMic = () => {
     if (isListening) {
-      recognitionRef.current?.stop();
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // Ignore stop errors.
+      }
+
       setIsListening(false);
       return;
     }
 
+    const speechWindow =
+      window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionLike;
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+      };
+
     const SpeechRecognition =
-      (
-        window as unknown as {
-          SpeechRecognition?: new () => SpeechRecognitionLike;
-          webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-        }
-      ).SpeechRecognition ||
-      (
-        window as unknown as {
-          webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-        }
-      ).webkitSpeechRecognition;
+      speechWindow.SpeechRecognition ||
+      speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setError(
@@ -944,13 +1070,6 @@ const AIAssistant = () => {
         recognition;
 
       recognition.lang = "en-IN";
-
-      /*
-       * Important:
-       * We intentionally use interim results,
-       * but replace the voice portion instead
-       * of appending every interim result.
-       */
       recognition.interimResults = true;
       recognition.continuous = false;
 
@@ -958,6 +1077,7 @@ const AIAssistant = () => {
         question.trim();
 
       let finalTranscript = "";
+      let interimTranscript = "";
 
       setError("");
       setIsListening(true);
@@ -965,47 +1085,73 @@ const AIAssistant = () => {
       recognition.onresult = (
         event
       ) => {
-        let currentTranscript =
-          "";
+        let finalPart = "";
+        let interimPart = "";
 
-        const resultKeys =
-          Object.keys(
-            event.results
-          );
+        const resultLength =
+          typeof event.results.length ===
+          "number"
+            ? event.results.length
+            : 0;
 
-        resultKeys.forEach(
-          (key) => {
-            const index =
-              Number(key);
+        for (
+          let i = 0;
+          i < resultLength;
+          i += 1
+        ) {
+          const result =
+            event.results[i];
 
-            const result =
-              event.results[index];
+          const transcript =
+            result?.[0]
+              ?.transcript
+              ?.trim() || "";
 
-            if (result?.[0]) {
-              currentTranscript +=
-                result[0]
-                  .transcript;
-            }
+          if (!transcript) {
+            continue;
           }
-        );
+
+          if (result?.isFinal) {
+            finalPart +=
+              `${transcript} `;
+          } else {
+            interimPart +=
+              `${transcript} `;
+          }
+        }
 
         /*
-         * Prevent repeated text:
-         * browser sends cumulative interim
-         * results, so don't append them.
+         * IMPORTANT:
+         * SpeechRecognition sends cumulative
+         * results. We replace the current voice
+         * text instead of appending it repeatedly.
          */
+
         finalTranscript =
-          currentTranscript.trim();
+          normalizeSpeechText(
+            finalPart
+          );
+
+        interimTranscript =
+          normalizeSpeechText(
+            interimPart
+          );
+
+        const voiceText =
+          normalizeSpeechText(
+            `${finalTranscript} ${interimTranscript}`
+          );
 
         const combined =
-          baseText &&
-          finalTranscript
-            ? `${baseText} ${finalTranscript}`
+          baseText && voiceText
+            ? `${baseText} ${voiceText}`
             : baseText ||
-              finalTranscript;
+              voiceText;
 
         setQuestion(
-          combined.trim()
+          normalizeSpeechText(
+            combined
+          )
         );
       };
 
@@ -1035,6 +1181,10 @@ const AIAssistant = () => {
       setIsListening(false);
       recognitionRef.current =
         null;
+
+      setError(
+        "Unable to start voice input. Please try again."
+      );
     }
   };
 
@@ -1054,17 +1204,19 @@ const AIAssistant = () => {
           "linear-gradient(180deg,#F7FBF8 0%,#FFFFFF 48%,#F8FBF9 100%)",
 
         px: {
-          xs: 0.6,
-          sm: 1.5,
-          md: 2.5,
+          xs: 0.5,
+          sm: 1.25,
+          md: 2.2,
           lg: 3,
         },
 
         py: {
-          xs: 0.7,
-          sm: 1.4,
-          md: 2,
+          xs: 0.6,
+          sm: 1.1,
+          md: 1.6,
         },
+
+        boxSizing: "border-box",
       }}
     >
       <Box
@@ -1085,26 +1237,22 @@ const AIAssistant = () => {
 
         <Box
           sx={{
-            flexShrink: 0,
+            flex: "0 0 auto",
             pb: {
-              xs: 0.8,
-              sm: 1.2,
-              md: 1.5,
-            },
-            px: {
-              xs: 0.35,
-              sm: 0,
+              xs: 0.7,
+              sm: 1,
+              md: 1.3,
             },
           }}
         >
-          <Stack
-            direction="row"
-            spacing={{
-              xs: 0.9,
-              sm: 1.2,
-            }}
+          <Box
             sx={{
+              display: "flex",
               alignItems: "center",
+              gap: {
+                xs: 0.9,
+                sm: 1.2,
+              },
             }}
           >
             <Box
@@ -1177,20 +1325,17 @@ const AIAssistant = () => {
                   },
                   color: "#87968E",
                   mt: 0.15,
-                  whiteSpace: {
-                    xs: "normal",
-                    sm: "nowrap",
-                  },
                   overflow: "hidden",
                   textOverflow:
                     "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 Personalized sustainability
                 insights
               </Typography>
             </Box>
-          </Stack>
+          </Box>
         </Box>
 
         {/* =================================================
@@ -1200,7 +1345,7 @@ const AIAssistant = () => {
         <Paper
           elevation={0}
           sx={{
-            flex: 1,
+            flex: "1 1 auto",
             minHeight: 0,
             width: "100%",
 
@@ -1223,6 +1368,8 @@ const AIAssistant = () => {
 
             boxShadow:
               "0 15px 50px rgba(31,75,50,0.075)",
+
+            position: "relative",
           }}
         >
           {/* =================================================
@@ -1231,7 +1378,7 @@ const AIAssistant = () => {
 
           <Box
             sx={{
-              flexShrink: 0,
+              flex: "0 0 auto",
 
               px: {
                 xs: 1.1,
@@ -1254,17 +1401,19 @@ const AIAssistant = () => {
               zIndex: 5,
             }}
           >
-            <Stack
-              direction="row"
-              spacing={{
-                xs: 0.85,
-                sm: 1.25,
-              }}
+            <Box
               sx={{
+                display: "flex",
                 alignItems: "center",
+                gap: {
+                  xs: 0.85,
+                  sm: 1.25,
+                },
                 minWidth: 0,
               }}
             >
+              {/* AI AVATAR */}
+
               <Box
                 sx={{
                   position: "relative",
@@ -1323,17 +1472,19 @@ const AIAssistant = () => {
                 />
               </Box>
 
+              {/* HEADER TEXT */}
+
               <Box
                 sx={{
                   minWidth: 0,
-                  flex: 1,
+                  flex: "1 1 auto",
                 }}
               >
-                <Stack
-                  direction="row"
-                  spacing={0.7}
+                <Box
                   sx={{
+                    display: "flex",
                     alignItems: "center",
+                    gap: 0.7,
                     minWidth: 0,
                   }}
                 >
@@ -1368,6 +1519,7 @@ const AIAssistant = () => {
                         xs: 19,
                         sm: 21,
                       },
+                      flexShrink: 0,
                       fontSize:
                         "0.58rem",
                       fontWeight: 750,
@@ -1382,7 +1534,6 @@ const AIAssistant = () => {
                         loading
                           ? "1px solid #F2E2B9"
                           : "1px solid #D9EEDF",
-                      flexShrink: 0,
                       "& .MuiChip-label":
                         {
                           px: {
@@ -1392,7 +1543,7 @@ const AIAssistant = () => {
                         },
                     }}
                   />
-                </Stack>
+                </Box>
 
                 <Typography
                   sx={{
@@ -1403,18 +1554,18 @@ const AIAssistant = () => {
                       sm: "0.66rem",
                     },
                     lineHeight: 1.4,
-                    whiteSpace:
-                      "nowrap",
-                    overflow:
-                      "hidden",
+                    overflow: "hidden",
                     textOverflow:
                       "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   Your personal sustainability
                   companion
                 </Typography>
               </Box>
+
+              {/* PERSONALIZED CHIP */}
 
               <Box
                 sx={{
@@ -1453,20 +1604,27 @@ const AIAssistant = () => {
                   }}
                 />
               </Box>
-            </Stack>
+            </Box>
           </Box>
 
           {/* =================================================
-              MESSAGES
+              MESSAGES SCROLL AREA
           ================================================= */}
 
           <Box
             sx={{
-              flex: 1,
+              flex: "1 1 0",
               minHeight: 0,
+              height: 0,
 
               overflowY: "auto",
               overflowX: "hidden",
+
+              overscrollBehavior:
+                "contain",
+
+              WebkitOverflowScrolling:
+                "touch",
 
               px: {
                 xs: 1,
@@ -1483,9 +1641,9 @@ const AIAssistant = () => {
               },
 
               pb: {
-                xs: 2.5,
-                sm: 3,
-                md: 3.5,
+                xs: 3,
+                sm: 3.5,
+                md: 4,
               },
 
               background:
@@ -1535,16 +1693,22 @@ const AIAssistant = () => {
                     xs: 1.5,
                     sm: 2,
                   },
+                  boxSizing: "border-box",
                 }}
               >
-                <Stack
+                <Box
                   sx={{
                     width: "100%",
                     maxWidth: 680,
+                    display: "flex",
+                    flexDirection:
+                      "column",
                     alignItems: "center",
                     textAlign: "center",
                   }}
                 >
+                  {/* AI ICON */}
+
                   <Box
                     sx={{
                       position:
@@ -1656,10 +1820,6 @@ const AIAssistant = () => {
                         md: "0.84rem",
                       },
                       lineHeight: 1.7,
-                      px: {
-                        xs: 0.5,
-                        sm: 0,
-                      },
                     }}
                   >
                     Ask me anything about your
@@ -1671,19 +1831,18 @@ const AIAssistant = () => {
 
                   {/* TOPICS */}
 
-                  <Stack
-                    direction="row"
-                    spacing={0.7}
-                    useFlexGap
+                  <Box
                     sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent:
+                        "center",
+                      flexWrap: "wrap",
+                      gap: 0.7,
                       mt: {
                         xs: 1.6,
                         sm: 2.2,
                       },
-                      flexWrap:
-                        "wrap",
-                      justifyContent:
-                        "center",
                       width: "100%",
                     }}
                   >
@@ -1716,28 +1875,28 @@ const AIAssistant = () => {
                         }}
                       />
                     ))}
-                  </Stack>
+                  </Box>
 
                   {/* QUICK ACTIONS */}
 
-                  <Stack
-                    direction="row"
-                    spacing={{
-                      xs: 0.7,
-                      sm: 1,
-                    }}
-                    useFlexGap
+                  <Box
                     sx={{
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
+                      flexWrap: "wrap",
+                      gap: {
+                        xs: 0.7,
+                        sm: 1,
+                      },
                       mt: {
                         xs: 1.5,
                         sm: 2.2,
                       },
                       width: "100%",
                       maxWidth: 620,
-                      flexWrap:
-                        "wrap",
-                      justifyContent:
-                        "center",
                     }}
                   >
                     {quickActions
@@ -1768,10 +1927,8 @@ const AIAssistant = () => {
                                 xs: 32,
                                 sm: 34,
                               },
-                              maxWidth: {
-                                xs: "100%",
-                                sm: "none",
-                              },
+                              maxWidth:
+                                "100%",
                               background:
                                 "#FFFFFF",
                               border:
@@ -1794,6 +1951,8 @@ const AIAssistant = () => {
                                     "#C7E1D1",
                                   color:
                                     "#168A52",
+                                  transform:
+                                    "translateY(-1px)",
                                 },
                               "& .MuiChip-icon":
                                 {
@@ -1809,365 +1968,429 @@ const AIAssistant = () => {
                           />
                         )
                       )}
-                  </Stack>
-                </Stack>
+                  </Box>
+                </Box>
               </Box>
             ) : (
               /* =================================================
                  CHAT MESSAGES
               ================================================= */
 
-              <Stack
-                spacing={{
-                  xs: 1.8,
-                  sm: 2.4,
-                  md: 2.7,
+              <Box
+                sx={{
+                  width: "100%",
+                  minWidth: 0,
                 }}
               >
-                {messages.map(
-                  (message) => {
-                    const isUser =
-                      message.role ===
-                      "user";
+                <Stack
+                  spacing={{
+                    xs: 2,
+                    sm: 2.6,
+                    md: 3,
+                  }}
+                  sx={{
+                    width: "100%",
+                    minWidth: 0,
+                  }}
+                >
+                  {messages.map(
+                    (message) => {
+                      const isUser =
+                        message.role ===
+                        "user";
 
-                    return (
-                      <Box
-                        key={
-                          message.id
-                        }
-                        sx={{
-                          display:
-                            "flex",
-                          justifyContent:
-                            isUser
-                              ? "flex-end"
-                              : "flex-start",
-                          width: "100%",
-                          animation:
-                            "messageIn 220ms ease-out",
-                          "@keyframes messageIn":
-                            {
-                              from: {
-                                opacity: 0,
-                                transform:
-                                  "translateY(5px)",
-                              },
-                              to: {
-                                opacity: 1,
-                                transform:
-                                  "translateY(0)",
-                              },
-                            },
-                        }}
-                      >
+                      return (
                         <Box
+                          key={
+                            message.id
+                          }
                           sx={{
+                            width:
+                              "100%",
+                            minWidth: 0,
                             display:
                               "flex",
-                            flexDirection:
+                            justifyContent:
                               isUser
-                                ? "row-reverse"
-                                : "row",
-                            alignItems:
-                              "flex-start",
-                            gap: {
-                              xs: 0.65,
-                              sm: 1,
-                            },
-                            width: "100%",
-                            maxWidth:
-                              isUser
-                                ? {
-                                    xs: "96%",
-                                    sm: "82%",
-                                    md: "72%",
-                                  }
-                                : {
-                                    xs: "99%",
-                                    sm: "94%",
-                                    md: "88%",
-                                  },
-                            minWidth: 0,
+                                ? "flex-end"
+                                : "flex-start",
+                            animation:
+                              "messageIn 220ms ease-out",
+                            "@keyframes messageIn":
+                              {
+                                from: {
+                                  opacity: 0,
+                                  transform:
+                                    "translateY(5px)",
+                                },
+                                to: {
+                                  opacity: 1,
+                                  transform:
+                                    "translateY(0)",
+                                },
+                              },
                           }}
                         >
-                          {/* AVATAR */}
-
-                          <Avatar
-                            sx={{
-                              width: {
-                                xs: 30,
-                                sm: 34,
-                              },
-                              height: {
-                                xs: 30,
-                                sm: 34,
-                              },
-                              flexShrink: 0,
-                              background:
-                                isUser
-                                  ? "#F0F4F1"
-                                  : "#EAF7EF",
-                              color:
-                                isUser
-                                  ? "#64756C"
-                                  : "#168A52",
-                              border:
-                                "1px solid #DFE9E3",
-                            }}
-                          >
-                            {isUser ? (
-                              <PersonRoundedIcon
-                                sx={{
-                                  fontSize:
-                                    {
-                                      xs: 15,
-                                      sm: 17,
-                                    },
-                                }}
-                              />
-                            ) : (
-                              <SmartToyRoundedIcon
-                                sx={{
-                                  fontSize:
-                                    {
-                                      xs: 16,
-                                      sm: 18,
-                                    },
-                                }}
-                              />
-                            )}
-                          </Avatar>
-
-                          {/* CONTENT */}
-
                           <Box
                             sx={{
+                              display:
+                                "flex",
+                              flexDirection:
+                                isUser
+                                  ? "row-reverse"
+                                  : "row",
+                              alignItems:
+                                "flex-start",
+                              gap: {
+                                xs: 0.65,
+                                sm: 1,
+                              },
+                              width:
+                                "100%",
+                              maxWidth:
+                                isUser
+                                  ? {
+                                      xs: "96%",
+                                      sm: "82%",
+                                      md: "72%",
+                                    }
+                                  : {
+                                      xs: "100%",
+                                      sm: "96%",
+                                      md: "91%",
+                                    },
                               minWidth: 0,
-                              flex: 1,
-                              overflow:
-                                "hidden",
                             }}
                           >
-                            <Typography
-                              sx={{
-                                fontSize:
-                                  "0.62rem",
-                                fontWeight:
-                                  750,
-                                color:
-                                  "#94A099",
-                                mb: 0.45,
-                                textAlign:
-                                  isUser
-                                    ? "right"
-                                    : "left",
-                              }}
-                            >
-                              {isUser
-                                ? "You"
-                                : "CarbonTrack AI"}
-                            </Typography>
+                            {/* AVATAR */}
 
-                            <Paper
-                              elevation={0}
+                            <Avatar
                               sx={{
-                                px: {
-                                  xs: 1.2,
-                                  sm: 1.8,
+                                width: {
+                                  xs: 30,
+                                  sm: 34,
                                 },
-                                py: {
-                                  xs: 1.05,
-                                  sm: 1.5,
+                                height: {
+                                  xs: 30,
+                                  sm: 34,
                                 },
-                                borderRadius:
-                                  isUser
-                                    ? "17px 17px 5px 17px"
-                                    : "5px 17px 17px 17px",
+                                flexShrink: 0,
                                 background:
                                   isUser
-                                    ? "linear-gradient(135deg,#39A96D,#168A52)"
-                                    : "#F8FBF9",
+                                    ? "#F0F4F1"
+                                    : "#EAF7EF",
                                 color:
                                   isUser
-                                    ? "#FFFFFF"
-                                    : "#31483C",
+                                    ? "#64756C"
+                                    : "#168A52",
                                 border:
-                                  isUser
-                                    ? "none"
-                                    : "1px solid #E1EAE4",
-                                boxShadow:
-                                  isUser
-                                    ? "0 7px 18px rgba(22,138,82,0.14)"
-                                    : "0 4px 16px rgba(30,75,49,0.035)",
-                                fontSize: {
-                                  xs: "0.78rem",
-                                  sm: "0.88rem",
-                                },
-                                lineHeight:
-                                  1.75,
-                                overflowWrap:
-                                  "anywhere",
-                                wordBreak:
-                                  "break-word",
-                                minWidth: 0,
-                                width: "100%",
+                                  "1px solid #DFE9E3",
                               }}
                             >
-                              {isUser
-                                ? message.content
-                                : renderAIAnswer(
-                                    message.content
-                                  )}
-                            </Paper>
+                              {isUser ? (
+                                <PersonRoundedIcon
+                                  sx={{
+                                    fontSize:
+                                      {
+                                        xs: 15,
+                                        sm: 17,
+                                      },
+                                  }}
+                                />
+                              ) : (
+                                <SmartToyRoundedIcon
+                                  sx={{
+                                    fontSize:
+                                      {
+                                        xs: 16,
+                                        sm: 18,
+                                      },
+                                  }}
+                                />
+                              )}
+                            </Avatar>
+
+                            {/* CONTENT COLUMN */}
+
+                            <Box
+                              sx={{
+                                flex:
+                                  "1 1 auto",
+                                minWidth:
+                                  0,
+                                maxWidth:
+                                  "100%",
+                              }}
+                            >
+                              {/* ROLE */}
+
+                              <Typography
+                                sx={{
+                                  fontSize:
+                                    "0.62rem",
+                                  fontWeight:
+                                    750,
+                                  color:
+                                    "#94A099",
+                                  mb: 0.45,
+                                  textAlign:
+                                    isUser
+                                      ? "right"
+                                      : "left",
+                                }}
+                              >
+                                {isUser
+                                  ? "You"
+                                  : "CarbonTrack AI"}
+                              </Typography>
+
+                              {/* MESSAGE */}
+
+                              <Paper
+                                elevation={
+                                  0
+                                }
+                                sx={{
+                                  width:
+                                    "100%",
+                                  maxWidth:
+                                    "100%",
+                                  minWidth:
+                                    0,
+                                  boxSizing:
+                                    "border-box",
+
+                                  px: {
+                                    xs: 1.2,
+                                    sm: 1.8,
+                                  },
+
+                                  py: {
+                                    xs: 1.05,
+                                    sm: 1.5,
+                                  },
+
+                                  borderRadius:
+                                    isUser
+                                      ? "17px 17px 5px 17px"
+                                      : "5px 17px 17px 17px",
+
+                                  background:
+                                    isUser
+                                      ? "linear-gradient(135deg,#39A96D,#168A52)"
+                                      : "#F8FBF9",
+
+                                  color:
+                                    isUser
+                                      ? "#FFFFFF"
+                                      : "#31483C",
+
+                                  border:
+                                    isUser
+                                      ? "none"
+                                      : "1px solid #E1EAE4",
+
+                                  boxShadow:
+                                    isUser
+                                      ? "0 7px 18px rgba(22,138,82,0.14)"
+                                      : "0 4px 16px rgba(30,75,49,0.035)",
+
+                                  fontSize: {
+                                    xs: "0.78rem",
+                                    sm: "0.88rem",
+                                  },
+
+                                  lineHeight:
+                                    1.75,
+
+                                  overflow:
+                                    "visible",
+
+                                  overflowWrap:
+                                    "anywhere",
+
+                                  wordBreak:
+                                    "break-word",
+
+                                  whiteSpace:
+                                    isUser
+                                      ? "pre-wrap"
+                                      : "normal",
+                                }}
+                              >
+                                {isUser
+                                  ? message.content
+                                  : renderAIAnswer(
+                                      message.content
+                                    )}
+                              </Paper>
+                            </Box>
                           </Box>
                         </Box>
-                      </Box>
-                    );
-                  }
-                )}
+                      );
+                    }
+                  )}
 
-                {/* THINKING */}
+                  {/* =================================================
+                      THINKING
+                  ================================================= */}
 
-                {loading && (
-                  <Box
-                    sx={{
-                      display:
-                        "flex",
-                      alignItems:
-                        "flex-start",
-                      gap: {
-                        xs: 0.65,
-                        sm: 1,
-                      },
-                      maxWidth: {
-                        xs: "98%",
-                        sm: "86%",
-                      },
-                    }}
-                  >
-                    <Avatar
+                  {loading && (
+                    <Box
                       sx={{
-                        width: {
-                          xs: 30,
-                          sm: 34,
+                        display:
+                          "flex",
+                        alignItems:
+                          "flex-start",
+                        gap: {
+                          xs: 0.65,
+                          sm: 1,
                         },
-                        height: {
-                          xs: 30,
-                          sm: 34,
+                        width:
+                          "100%",
+                        maxWidth: {
+                          xs: "98%",
+                          sm: "86%",
                         },
-                        background:
-                          "#EAF7EF",
-                        color:
-                          "#168A52",
-                        border:
-                          "1px solid #DFE9E3",
                       }}
                     >
-                      <SmartToyRoundedIcon
+                      <Avatar
                         sx={{
-                          fontSize: {
-                            xs: 16,
-                            sm: 18,
+                          width: {
+                            xs: 30,
+                            sm: 34,
                           },
+                          height: {
+                            xs: 30,
+                            sm: 34,
+                          },
+                          flexShrink: 0,
+                          background:
+                            "#EAF7EF",
+                          color:
+                            "#168A52",
+                          border:
+                            "1px solid #DFE9E3",
                         }}
-                      />
-                    </Avatar>
+                      >
+                        <SmartToyRoundedIcon
+                          sx={{
+                            fontSize: {
+                              xs: 16,
+                              sm: 18,
+                            },
+                          }}
+                        />
+                      </Avatar>
 
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        px: {
-                          xs: 1.25,
-                          sm: 1.7,
-                        },
-                        py: {
-                          xs: 1,
-                          sm: 1.25,
-                        },
-                        borderRadius:
-                          "5px 18px 18px 18px",
-                        background:
-                          "#F8FBF9",
-                        border:
-                          "1px solid #E1EAE4",
-                        minWidth: 0,
-                      }}
-                    >
-                      <Stack
-                        direction="row"
-                        spacing={0.9}
+                      <Paper
+                        elevation={0}
                         sx={{
-                          alignItems:
-                            "center",
+                          minWidth: 0,
+                          px: {
+                            xs: 1.25,
+                            sm: 1.7,
+                          },
+                          py: {
+                            xs: 1,
+                            sm: 1.25,
+                          },
+                          borderRadius:
+                            "5px 18px 18px 18px",
+                          background:
+                            "#F8FBF9",
+                          border:
+                            "1px solid #E1EAE4",
                         }}
                       >
                         <Box
                           sx={{
                             display:
                               "flex",
-                            gap: "3px",
+                            alignItems:
+                              "center",
+                            gap: 0.9,
                           }}
                         >
-                          {[0, 1, 2].map(
-                            (dot) => (
-                              <Box
-                                key={
-                                  dot
-                                }
-                                sx={{
-                                  width: 5,
-                                  height: 5,
-                                  borderRadius:
-                                    "50%",
-                                  background:
-                                    "#55B982",
-                                  animation:
-                                    "thinkingDot 1.2s infinite",
-                                  animationDelay:
-                                    `${dot * 0.18}s`,
-                                  "@keyframes thinkingDot":
-                                    {
-                                      "0%, 60%, 100%":
-                                        {
-                                          opacity:
-                                            0.3,
-                                          transform:
-                                            "translateY(0)",
-                                        },
-                                      "30%":
-                                        {
-                                          opacity:
-                                            1,
-                                          transform:
-                                            "translateY(-3px)",
-                                        },
-                                    },
-                                }}
-                              />
-                            )
-                          )}
-                        </Box>
+                          <Box
+                            sx={{
+                              display:
+                                "flex",
+                              gap: "3px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {[0, 1, 2].map(
+                              (dot) => (
+                                <Box
+                                  key={
+                                    dot
+                                  }
+                                  sx={{
+                                    width: 5,
+                                    height: 5,
+                                    borderRadius:
+                                      "50%",
+                                    background:
+                                      "#55B982",
+                                    animation:
+                                      "thinkingDot 1.2s infinite",
+                                    animationDelay:
+                                      `${dot * 0.18}s`,
+                                    "@keyframes thinkingDot":
+                                      {
+                                        "0%, 60%, 100%":
+                                          {
+                                            opacity:
+                                              0.3,
+                                            transform:
+                                              "translateY(0)",
+                                          },
+                                        "30%":
+                                          {
+                                            opacity:
+                                              1,
+                                            transform:
+                                              "translateY(-3px)",
+                                          },
+                                      },
+                                  }}
+                                />
+                              )
+                            )}
+                          </Box>
 
-                        <Typography
-                          sx={{
-                            fontSize: {
-                              xs: "0.66rem",
-                              sm: "0.74rem",
-                            },
-                            color:
-                              "#819189",
-                            whiteSpace:
-                              "nowrap",
-                          }}
-                        >
-                          CarbonTrack AI is
-                          thinking…
-                        </Typography>
-                      </Stack>
-                    </Paper>
-                  </Box>
-                )}
-              </Stack>
+                          <Typography
+                            sx={{
+                              fontSize: {
+                                xs: "0.66rem",
+                                sm: "0.74rem",
+                              },
+                              color:
+                                "#819189",
+                              whiteSpace:
+                                "nowrap",
+                            }}
+                          >
+                            CarbonTrack AI is
+                            thinking…
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Box>
+                  )}
+
+                  {/* SCROLL ANCHOR */}
+
+                  <Box
+                    ref={messagesEndRef}
+                    sx={{
+                      height: 1,
+                      width: "100%",
+                    }}
+                  />
+                </Stack>
+              </Box>
             )}
           </Box>
 
@@ -2176,41 +2399,57 @@ const AIAssistant = () => {
           ================================================= */}
 
           {error && (
-            <Alert
-              severity="error"
-              onClose={() =>
-                setError("")
-              }
+            <Box
               sx={{
-                mx: {
+                flex:
+                  "0 0 auto",
+                px: {
                   xs: 0.8,
                   sm: 2,
                   md: 4,
                 },
-                mt: 0.8,
-                borderRadius: 2,
-                py: 0.15,
-                fontSize: "0.7rem",
-                flexShrink: 0,
-                zIndex: 15,
-                "& .MuiAlert-message":
-                  {
-                    overflowWrap:
-                      "anywhere",
-                  },
+                pt: 0.7,
+                background:
+                  "#FFFFFF",
+                zIndex: 25,
               }}
             >
-              {error}
-            </Alert>
+              <Alert
+                severity="error"
+                onClose={() =>
+                  setError("")
+                }
+                sx={{
+                  borderRadius: 2,
+                  py: 0.15,
+                  fontSize: "0.7rem",
+                  "& .MuiAlert-message":
+                    {
+                      minWidth: 0,
+                      overflowWrap:
+                        "anywhere",
+                      wordBreak:
+                        "break-word",
+                    },
+                }}
+              >
+                {error}
+              </Alert>
+            </Box>
           )}
 
           {/* =================================================
-              COMPOSER
+              STICKY COMPOSER
           ================================================= */}
 
           <Box
             sx={{
-              flexShrink: 0,
+              flex: "0 0 auto",
+
+              position: "sticky",
+              bottom: 0,
+
+              width: "100%",
 
               px: {
                 xs: 0.65,
@@ -2230,8 +2469,10 @@ const AIAssistant = () => {
                 md: 1,
               },
 
+              boxSizing: "border-box",
+
               background:
-                "linear-gradient(180deg,rgba(255,255,255,0.72) 0%,rgba(255,255,255,0.97) 30%,#FFFFFF 100%)",
+                "linear-gradient(180deg,rgba(255,255,255,0.74) 0%,rgba(255,255,255,0.97) 30%,#FFFFFF 100%)",
 
               backdropFilter:
                 "blur(14px)",
@@ -2245,7 +2486,7 @@ const AIAssistant = () => {
               boxShadow:
                 "0 -12px 32px rgba(31,75,50,0.045)",
 
-              zIndex: 20,
+              zIndex: 30,
             }}
           >
             {/* =================================================
@@ -2256,8 +2497,11 @@ const AIAssistant = () => {
               <Box
                 sx={{
                   mb: 0.8,
+                  width: "100%",
+                  minWidth: 0,
                   display: "flex",
-                  alignItems: "center",
+                  alignItems:
+                    "center",
                   gap: 1,
                   px: {
                     xs: 0.9,
@@ -2269,17 +2513,17 @@ const AIAssistant = () => {
                     "#F5FAF7",
                   border:
                     "1px solid #DCEBE2",
-                  minWidth: 0,
+                  boxSizing: "border-box",
                 }}
               >
-                {/* IMAGE PREVIEW */}
+                {/* IMAGE */}
 
                 {isImage &&
                 imagePreview ? (
                   <Box
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       borderRadius: 1.5,
                       overflow: "hidden",
                       flexShrink: 0,
@@ -2310,8 +2554,8 @@ const AIAssistant = () => {
                 ) : (
                   <Box
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 42,
+                      height: 42,
                       borderRadius: 1.5,
                       display: "flex",
                       alignItems:
@@ -2332,23 +2576,26 @@ const AIAssistant = () => {
                     {isPDF ? (
                       <PictureAsPdfOutlinedIcon
                         sx={{
-                          fontSize: 22,
+                          fontSize: 23,
                         }}
                       />
                     ) : (
                       <DescriptionOutlinedIcon
                         sx={{
-                          fontSize: 22,
+                          fontSize: 23,
                         }}
                       />
                     )}
                   </Box>
                 )}
 
+                {/* FILE DETAILS */}
+
                 <Box
                   sx={{
+                    flex:
+                      "1 1 auto",
                     minWidth: 0,
-                    flex: 1,
                   }}
                 >
                   <Typography
@@ -2386,6 +2633,8 @@ const AIAssistant = () => {
                   </Typography>
                 </Box>
 
+                {/* REMOVE */}
+
                 <IconButton
                   size="small"
                   aria-label="Remove attachment"
@@ -2395,9 +2644,9 @@ const AIAssistant = () => {
                   sx={{
                     width: 28,
                     height: 28,
+                    flexShrink: 0,
                     color:
                       "#75877D",
-                    flexShrink: 0,
                     "&:hover": {
                       background:
                         "#EAF3ED",
@@ -2423,6 +2672,7 @@ const AIAssistant = () => {
               elevation={0}
               sx={{
                 width: "100%",
+                minWidth: 0,
 
                 minHeight: {
                   xs: 52,
@@ -2431,7 +2681,8 @@ const AIAssistant = () => {
                 },
 
                 display: "flex",
-                alignItems: "center",
+                alignItems:
+                  "center",
 
                 gap: {
                   xs: 0.05,
@@ -2448,6 +2699,8 @@ const AIAssistant = () => {
                   xs: 0.25,
                   sm: 0.35,
                 },
+
+                boxSizing: "border-box",
 
                 borderRadius: {
                   xs: 2.7,
@@ -2539,7 +2792,7 @@ const AIAssistant = () => {
                 />
               </IconButton>
 
-              {/* IMAGE */}
+              {/* IMAGE BUTTON */}
 
               <IconButton
                 aria-label="Attach image"
@@ -2585,7 +2838,7 @@ const AIAssistant = () => {
               <TextField
                 fullWidth
                 multiline
-                maxRows={4}
+                maxRows={5}
                 value={question}
                 disabled={loading}
                 onChange={(event) =>
@@ -2603,11 +2856,16 @@ const AIAssistant = () => {
                 }
                 variant="standard"
                 sx={{
-                  flex: 1,
+                  flex:
+                    "1 1 auto",
                   minWidth: 0,
+                  maxWidth:
+                    "100%",
 
                   "& .MuiInputBase-root":
                     {
+                      width:
+                        "100%",
                       px: {
                         xs: 0.3,
                         sm: 0.55,
@@ -2627,15 +2885,12 @@ const AIAssistant = () => {
                       lineHeight: 1.5,
                       minHeight:
                         "38px",
-                      display:
-                        "flex",
-                      alignItems:
-                        "center",
                       minWidth: 0,
                     },
 
                   "& .MuiInputBase-input":
                     {
+                      minWidth: 0,
                       lineHeight: 1.5,
                       maxHeight: {
                         xs: 82,
@@ -2646,6 +2901,8 @@ const AIAssistant = () => {
                         "auto !important",
                       overflowWrap:
                         "anywhere",
+                      wordBreak:
+                        "break-word",
 
                       "&::-webkit-scrollbar":
                         {
@@ -2838,12 +3095,6 @@ const AIAssistant = () => {
                   md: "0.61rem",
                 },
                 lineHeight: 1.4,
-                letterSpacing:
-                  "0.05px",
-                whiteSpace: {
-                  xs: "normal",
-                  sm: "nowrap",
-                },
                 px: {
                   xs: 0.5,
                   sm: 0,
