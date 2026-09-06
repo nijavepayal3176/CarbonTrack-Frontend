@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -348,6 +349,9 @@ const MyDevices = () => {
       sx={{
         minHeight: "100vh",
         width: "100%",
+        maxWidth: "100%",
+        overflowX: "hidden",
+        boxSizing: "border-box",
         background:
           "linear-gradient(180deg, #F8FBF9 0%, #F4F8F5 50%, #F1F6F3 100%)",
         px: {
@@ -368,6 +372,7 @@ const MyDevices = () => {
           width: "100%",
           maxWidth: 1320,
           mx: "auto",
+          minWidth: 0,
         }}
       >
         {/* =================================================
@@ -393,7 +398,15 @@ const MyDevices = () => {
             gap: 2.5,
           }}
         >
-          <Box>
+          <Box
+            sx={{
+              minWidth: 0,
+              width: {
+                xs: "100%",
+                sm: "auto",
+              },
+            }}
+          >
             <Stack
               direction="row"
               spacing={1}
@@ -406,6 +419,7 @@ const MyDevices = () => {
                 sx={{
                   width: 8,
                   height: 8,
+                  flexShrink: 0,
                   borderRadius: "50%",
                   background:
                     "linear-gradient(135deg, #1C9B61, #087340)",
@@ -438,6 +452,7 @@ const MyDevices = () => {
                 fontWeight: 900,
                 letterSpacing: "-1.3px",
                 color: "#14231B",
+                overflowWrap: "break-word",
               }}
             >
               My Devices
@@ -472,6 +487,7 @@ const MyDevices = () => {
                 xs: "100%",
                 sm: "auto",
               },
+              flexShrink: 0,
               borderRadius: "13px",
               textTransform: "none",
               fontSize: 13,
@@ -508,6 +524,8 @@ const MyDevices = () => {
               borderRadius: "13px",
               border: "1px solid #F0D0D0",
               backgroundColor: "#FFF9F9",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             {error}
@@ -523,6 +541,8 @@ const MyDevices = () => {
               borderRadius: "13px",
               border: "1px solid #CFE8D9",
               backgroundColor: "#F7FCF8",
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             {success}
@@ -589,6 +609,7 @@ const MyDevices = () => {
                   sm: "center",
                 },
                 justifyContent: "space-between",
+                minWidth: 0,
               }}
             >
               <Stack
@@ -596,6 +617,11 @@ const MyDevices = () => {
                 spacing={1.4}
                 sx={{
                   alignItems: "center",
+                  minWidth: 0,
+                  width: {
+                    xs: "100%",
+                    sm: "auto",
+                  },
                 }}
               >
                 <Box
@@ -619,7 +645,7 @@ const MyDevices = () => {
                   <AutoAwesomeOutlinedIcon />
                 </Box>
 
-                <Box>
+                <Box sx={{ minWidth: 0 }}>
                   <Typography
                     sx={{
                       fontSize: 13,
@@ -660,6 +686,7 @@ const MyDevices = () => {
                 }
                 sx={{
                   height: 31,
+                  maxWidth: "100%",
                   borderRadius: "10px",
                   backgroundColor:
                     "rgba(255,255,255,0.88)",
@@ -686,8 +713,8 @@ const MyDevices = () => {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              lg: "repeat(3, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
             },
             gap: 1.8,
             mb: 2.5,
@@ -750,6 +777,9 @@ const MyDevices = () => {
         <Card
           elevation={0}
           sx={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
             borderRadius: "22px",
             border: "1px solid #E0E8E3",
             backgroundColor: "#FFFFFF",
@@ -765,6 +795,7 @@ const MyDevices = () => {
                 sm: 2.5,
                 md: 3,
               },
+              minWidth: 0,
               "&:last-child": {
                 pb: {
                   xs: 1.7,
@@ -788,6 +819,7 @@ const MyDevices = () => {
                   sm: "center",
                 },
                 justifyContent: "space-between",
+                minWidth: 0,
               }}
             >
               <Stack
@@ -795,6 +827,11 @@ const MyDevices = () => {
                 spacing={1.3}
                 sx={{
                   alignItems: "center",
+                  minWidth: 0,
+                  width: {
+                    xs: "100%",
+                    sm: "auto",
+                  },
                 }}
               >
                 <Box
@@ -816,7 +853,7 @@ const MyDevices = () => {
                   <DevicesOutlinedIcon />
                 </Box>
 
-                <Box>
+                <Box sx={{ minWidth: 0 }}>
                   <Typography
                     sx={{
                       fontSize: 17,
@@ -857,6 +894,7 @@ const MyDevices = () => {
                 }`}
                 sx={{
                   height: 30,
+                  maxWidth: "100%",
                   borderRadius: "10px",
                   backgroundColor: "#F5F8F6",
                   border: "1px solid #E4EBE7",
@@ -932,6 +970,8 @@ const MyDevices = () => {
               <Box
                 sx={{
                   minHeight: 350,
+                  width: "100%",
+                  boxSizing: "border-box",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -952,6 +992,7 @@ const MyDevices = () => {
                     position: "relative",
                     width: 88,
                     height: 88,
+                    minWidth: 88,
                     borderRadius: "26px",
                     display: "flex",
                     alignItems: "center",
@@ -1013,6 +1054,7 @@ const MyDevices = () => {
 
                 <Typography
                   sx={{
+                    width: "100%",
                     maxWidth: 510,
                     mt: 0.8,
                     fontSize: 12.5,
@@ -1033,6 +1075,7 @@ const MyDevices = () => {
                   sx={{
                     mt: 2.5,
                     minHeight: 44,
+                    maxWidth: "100%",
                     px: 2.4,
                     borderRadius: "12px",
                     textTransform: "none",
@@ -1065,6 +1108,8 @@ const MyDevices = () => {
                     key={device._id}
                     elevation={0}
                     sx={{
+                      width: "100%",
+                      minWidth: 0,
                       border:
                         "1px solid #E4ECE7",
                       borderRadius: "17px",
@@ -1089,6 +1134,7 @@ const MyDevices = () => {
                           sm: 1.8,
                           md: 2,
                         },
+                        minWidth: 0,
                         "&:last-child": {
                           pb: {
                             xs: 1.5,
@@ -1114,6 +1160,7 @@ const MyDevices = () => {
                           },
                           justifyContent:
                             "space-between",
+                          minWidth: 0,
                         }}
                       >
                         {/* DEVICE INFO */}
@@ -1125,6 +1172,11 @@ const MyDevices = () => {
                             alignItems:
                               "center",
                             minWidth: 0,
+                            flex: 1,
+                            width: {
+                              xs: "100%",
+                              md: "auto",
+                            },
                           }}
                         >
                           <Box
@@ -1164,6 +1216,7 @@ const MyDevices = () => {
                             sx={{
                               minWidth: 0,
                               flex: 1,
+                              overflow: "hidden",
                             }}
                           >
                             <Stack
@@ -1176,6 +1229,7 @@ const MyDevices = () => {
                                   "wrap",
                                 rowGap:
                                   0.5,
+                                minWidth: 0,
                               }}
                             >
                               <Typography
@@ -1194,10 +1248,12 @@ const MyDevices = () => {
                                     "ellipsis",
                                   whiteSpace:
                                     "nowrap",
+                                  minWidth: 0,
                                   maxWidth:
                                     {
-                                      xs: 180,
+                                      xs: "100%",
                                       sm: 280,
+                                      md: 320,
                                     },
                                 }}
                               >
@@ -1225,6 +1281,7 @@ const MyDevices = () => {
                                 size="small"
                                 sx={{
                                   height: 23,
+                                  maxWidth: "100%",
                                   borderRadius:
                                     "7px",
                                   fontSize:
@@ -1268,6 +1325,7 @@ const MyDevices = () => {
                                   "wrap",
                                 rowGap:
                                   0.4,
+                                minWidth: 0,
                               }}
                             >
                               <Typography
@@ -1278,6 +1336,14 @@ const MyDevices = () => {
                                     650,
                                   color:
                                     "#68766E",
+                                  maxWidth:
+                                    "100%",
+                                  overflow:
+                                    "hidden",
+                                  textOverflow:
+                                    "ellipsis",
+                                  whiteSpace:
+                                    "nowrap",
                                 }}
                               >
                                 {device.type}
@@ -1289,6 +1355,7 @@ const MyDevices = () => {
                                     sx={{
                                       width: 3,
                                       height: 3,
+                                      minWidth: 3,
                                       borderRadius:
                                         "50%",
                                       backgroundColor:
@@ -1302,6 +1369,9 @@ const MyDevices = () => {
                                     sx={{
                                       alignItems:
                                         "center",
+                                      minWidth: 0,
+                                      maxWidth:
+                                        "100%",
                                     }}
                                   >
                                     <LocationOnOutlinedIcon
@@ -1309,6 +1379,7 @@ const MyDevices = () => {
                                         fontSize: 13,
                                         color:
                                           "#8A9790",
+                                        flexShrink: 0,
                                       }}
                                     />
 
@@ -1318,6 +1389,12 @@ const MyDevices = () => {
                                           10.8,
                                         color:
                                           "#7B887F",
+                                        overflow:
+                                          "hidden",
+                                        textOverflow:
+                                          "ellipsis",
+                                        whiteSpace:
+                                          "nowrap",
                                       }}
                                     >
                                       {
@@ -1336,6 +1413,7 @@ const MyDevices = () => {
                                 mt: 0.45,
                                 alignItems:
                                   "center",
+                                minWidth: 0,
                               }}
                             >
                               <AccessTimeOutlinedIcon
@@ -1343,6 +1421,7 @@ const MyDevices = () => {
                                   fontSize: 12.5,
                                   color:
                                     "#A0AAA4",
+                                  flexShrink: 0,
                                 }}
                               />
 
@@ -1352,6 +1431,15 @@ const MyDevices = () => {
                                     10.2,
                                   color:
                                     "#929D96",
+                                  overflow:
+                                    "hidden",
+                                  textOverflow:
+                                    "ellipsis",
+                                  whiteSpace:
+                                    {
+                                      xs: "normal",
+                                      sm: "nowrap",
+                                    },
                                 }}
                               >
                                 Last sync:{" "}
@@ -1379,6 +1467,11 @@ const MyDevices = () => {
                               xs: "100%",
                               md: "auto",
                             },
+                            flexWrap: {
+                              xs: "wrap",
+                              sm: "nowrap",
+                            },
+                            minWidth: 0,
                           }}
                         >
                           <Button
@@ -1412,6 +1505,7 @@ const MyDevices = () => {
                               fontSize: 11.5,
                               fontWeight:
                                 800,
+                              flexShrink: 0,
                               "&:hover": {
                                 backgroundColor:
                                   "#E7F5ED",
@@ -1454,6 +1548,7 @@ const MyDevices = () => {
                               fontSize: 11.5,
                               fontWeight:
                                 800,
+                              flexShrink: 0,
                               "&:hover": {
                                 backgroundColor:
                                   "#F0F4F2",
@@ -1478,6 +1573,7 @@ const MyDevices = () => {
                             sx={{
                               width: 36,
                               height: 36,
+                              minWidth: 36,
                               borderRadius:
                                 "10px",
                               color:
@@ -1486,6 +1582,7 @@ const MyDevices = () => {
                                 "#FFF7F7",
                               border:
                                 "1px solid #F1DEDE",
+                              flexShrink: 0,
                               "&:hover": {
                                 backgroundColor:
                                   "#FDEEEE",
@@ -1522,12 +1619,14 @@ const MyDevices = () => {
             justifyContent: "center",
             alignItems: "center",
             px: 1,
+            maxWidth: "100%",
           }}
         >
           <CloudOutlinedIcon
             sx={{
               fontSize: 16,
               color: "#A0ABA4",
+              flexShrink: 0,
             }}
           />
 
@@ -1556,24 +1655,32 @@ const MyDevices = () => {
         slotProps={{
           paper: {
             sx: {
-            borderRadius: "22px",
-            border: "1px solid #E1E9E4",
-            boxShadow:
-              "0 24px 70px rgba(20,50,35,0.16)",
-            overflow: "hidden",
-            mx: 1.5,
+              width: {
+                xs: "calc(100% - 24px)",
+                sm: "100%",
+              },
+              maxWidth: "100%",
+              borderRadius: "22px",
+              border: "1px solid #E1E9E4",
+              boxShadow:
+                "0 24px 70px rgba(20,50,35,0.16)",
+              overflow: "hidden",
+              mx: {
+                xs: 1.5,
+                sm: 2,
+              },
+            },
           },
-        },
-      }}
+        }}
       >
         <DialogTitle
           sx={{
             px: {
-              xs: 2.5,
+              xs: 2,
               sm: 3,
             },
             pt: {
-              xs: 2.5,
+              xs: 2.2,
               sm: 3,
             },
             pb: 1.5,
@@ -1586,6 +1693,7 @@ const MyDevices = () => {
               alignItems: "center",
               justifyContent:
                 "space-between",
+              minWidth: 0,
             }}
           >
             <Stack
@@ -1593,12 +1701,15 @@ const MyDevices = () => {
               spacing={1.3}
               sx={{
                 alignItems: "center",
+                minWidth: 0,
+                flex: 1,
               }}
             >
               <Box
                 sx={{
                   width: 46,
                   height: 46,
+                  minWidth: 46,
                   borderRadius: "14px",
                   display: "flex",
                   alignItems: "center",
@@ -1613,12 +1724,16 @@ const MyDevices = () => {
                 <DevicesOutlinedIcon />
               </Box>
 
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography
                   sx={{
-                    fontSize: 18,
+                    fontSize: {
+                      xs: 16,
+                      sm: 18,
+                    },
                     fontWeight: 900,
                     color: "#17221C",
+                    overflowWrap: "break-word",
                   }}
                 >
                   Connect New Device
@@ -1643,9 +1758,11 @@ const MyDevices = () => {
               sx={{
                 width: 34,
                 height: 34,
+                minWidth: 34,
                 borderRadius: "10px",
                 color: "#7B877F",
                 backgroundColor: "#F5F8F6",
+                flexShrink: 0,
                 "&:hover": {
                   backgroundColor: "#EDF3EF",
                 },
@@ -1663,7 +1780,7 @@ const MyDevices = () => {
         <DialogContent
           sx={{
             px: {
-              xs: 2.5,
+              xs: 2,
               sm: 3,
             },
             pb: 1,
@@ -1747,11 +1864,12 @@ const MyDevices = () => {
         <DialogActions
           sx={{
             px: {
-              xs: 2.5,
+              xs: 2,
               sm: 3,
             },
             py: 2.5,
             gap: 1,
+            flexWrap: "wrap",
           }}
         >
           <Button
@@ -1764,6 +1882,7 @@ const MyDevices = () => {
               textTransform: "none",
               color: "#68766E",
               fontWeight: 750,
+              flexShrink: 0,
               "&:hover": {
                 backgroundColor: "#F3F6F4",
               },
@@ -1792,6 +1911,7 @@ const MyDevices = () => {
               borderRadius: "11px",
               textTransform: "none",
               fontWeight: 850,
+              maxWidth: "100%",
               background:
                 "linear-gradient(135deg, #168A52 0%, #08763E 100%)",
               boxShadow:
@@ -1871,6 +1991,8 @@ const SummaryCard = ({
       sx={{
         position: "relative",
         minHeight: 122,
+        minWidth: 0,
+        width: "100%",
         borderRadius: "18px",
         border: "1px solid #E1E8E3",
         backgroundColor: "#FFFFFF",
@@ -1911,6 +2033,7 @@ const SummaryCard = ({
           spacing={1.4}
           sx={{
             alignItems: "center",
+            minWidth: 0,
           }}
         >
           <Box
@@ -1934,6 +2057,7 @@ const SummaryCard = ({
             sx={{
               minWidth: 0,
               flex: 1,
+              overflow: "hidden",
             }}
           >
             <Typography

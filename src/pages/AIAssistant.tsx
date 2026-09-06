@@ -4,11 +4,10 @@ import {
   useState,
 } from "react";
 
-import {
-  useSearchParams,
-} from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import type {
+  ChangeEvent,
   KeyboardEvent,
   ReactNode,
 } from "react";
@@ -38,11 +37,12 @@ import PersonRoundedIcon from "@mui/icons-material/PersonRounded";
 import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import LightbulbRoundedIcon from "@mui/icons-material/LightbulbRounded";
-
-/* NEW: composer icons only */
 import AttachFileOutlinedIcon from "@mui/icons-material/AttachFileOutlined";
 import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import MicNoneRoundedIcon from "@mui/icons-material/MicNoneRounded";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import PictureAsPdfOutlinedIcon from "@mui/icons-material/PictureAsPdfOutlined";
 
 import api from "../services/api";
 
@@ -58,10 +58,8 @@ interface Message {
 
 interface AIResponse {
   success: boolean;
-
   data?: {
     answer: string;
-
     context?: {
       totalActivities: number;
       totalCO2: number;
@@ -69,8 +67,30 @@ interface AIResponse {
       topCategory: string | null;
     };
   };
-
   message?: string;
+}
+
+interface SpeechRecognitionResultEventLike {
+  results: {
+    [index: number]: {
+      [index: number]: {
+        transcript: string;
+      };
+    };
+  };
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult:
+    | ((event: SpeechRecognitionResultEventLike) => void)
+    | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
 }
 
 /* =========================================================
@@ -123,24 +143,13 @@ const createMessageId = () =>
    CLEAN AI TEXT
 ========================================================= */
 
-const cleanAIText = (
-  text: string
-): string => {
-  if (!text) {
-    return "";
-  }
+const cleanAIText = (text: string): string => {
+  if (!text) return "";
 
   let cleaned = text;
 
-  cleaned = cleaned.replace(
-    /<br\s*\/?>/gi,
-    "\n"
-  );
-
-  cleaned = cleaned.replace(
-    /<\/?p>/gi,
-    ""
-  );
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, "\n");
+  cleaned = cleaned.replace(/<\/?p>/gi, "");
 
   const lines = cleaned
     .split("\n")
@@ -154,16 +163,11 @@ const cleanAIText = (
   );
 
   if (hasTable) {
-    const filtered = lines.filter(
-      (line) => {
-        const isSeparator =
-          /^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(
-            line
-          );
-
-        return !isSeparator;
-      }
-    );
+    const filtered = lines.filter((line) => {
+      return !/^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?$/.test(
+        line
+      );
+    });
 
     cleaned = filtered
       .map((line) => {
@@ -174,9 +178,7 @@ const cleanAIText = (
           const cells = line
             .slice(1, -1)
             .split("|")
-            .map((cell) =>
-              cell.trim()
-            )
+            .map((cell) => cell.trim())
             .filter(Boolean);
 
           return cells
@@ -239,14 +241,15 @@ const renderInline = (
           key={index}
           component="span"
           sx={{
-            px: 0.6,
-            py: 0.15,
+            px: 0.65,
+            py: 0.2,
             borderRadius: 0.8,
             background: "#EDF4EF",
             color: "#28704A",
             fontFamily:
-              "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: "0.88em",
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "0.9em",
+            border: "1px solid #DCE9E0",
           }}
         >
           {part.slice(1, -1)}
@@ -267,6 +270,7 @@ const renderInline = (
 
 /* =========================================================
    AI ANSWER RENDERER
+   CHATGPT STYLE
 ========================================================= */
 
 const renderAIAnswer = (
@@ -281,50 +285,55 @@ const renderAIAnswer = (
   let bulletBuffer: string[] = [];
 
   const flushBullets = () => {
-    if (!bulletBuffer.length) {
-      return;
-    }
+    if (!bulletBuffer.length) return;
 
     elements.push(
       <Box
-        key={`bullets-${elements.length}`}
+        key={`bullet-group-${elements.length}`}
         sx={{
-          mt: 0.8,
-          mb: 0.8,
+          mt: 1,
+          mb: 1,
         }}
       >
-        <Stack spacing={0.75}>
+        <Stack spacing={0.85}>
           {bulletBuffer.map(
             (bullet, index) => (
               <Box
                 key={index}
                 sx={{
                   display: "flex",
-                  alignItems:
-                    "flex-start",
-                  gap: 0.9,
+                  alignItems: "flex-start",
+                  gap: {
+                    xs: 0.75,
+                    sm: 0.9,
+                  },
+                  minWidth: 0,
                 }}
               >
                 <CheckCircleRoundedIcon
                   sx={{
-                    fontSize: 16,
+                    fontSize: {
+                      xs: 15,
+                      sm: 17,
+                    },
                     color: "#42A96F",
-                    mt: "3px",
+                    mt: "4px",
                     flexShrink: 0,
                   }}
                 />
 
                 <Typography
-                  component="span"
+                  component="div"
                   sx={{
                     fontSize: "inherit",
                     lineHeight: 1.75,
                     color: "inherit",
+                    minWidth: 0,
+                    overflowWrap:
+                      "anywhere",
                   }}
                 >
-                  {renderInline(
-                    bullet
-                  )}
+                  {renderInline(bullet)}
                 </Typography>
               </Box>
             )
@@ -345,12 +354,21 @@ const renderAIAnswer = (
       elements.push(
         <Box
           key={`space-${index}`}
-          sx={{ height: 5 }}
+          sx={{
+            height: {
+              xs: 5,
+              sm: 7,
+            },
+          }}
         />
       );
 
       return;
     }
+
+    /* =====================================================
+       HEADINGS
+    ===================================================== */
 
     if (
       line.startsWith("### ") ||
@@ -364,30 +382,53 @@ const renderAIAnswer = (
         .trim();
 
       elements.push(
-        <Typography
+        <Box
           key={`heading-${index}`}
           sx={{
             mt:
               elements.length > 0
-                ? 1.2
+                ? 1.5
                 : 0,
-            mb: 0.65,
-            fontSize: {
-              xs: "0.92rem",
-              sm: "0.98rem",
-            },
-            fontWeight: 850,
-            color: "#193D2A",
-            letterSpacing:
-              "-0.2px",
+            mb: 0.8,
           }}
         >
-          {heading}
-        </Typography>
+          <Typography
+            sx={{
+              fontSize: {
+                xs: "0.9rem",
+                sm: "1rem",
+              },
+              fontWeight: 800,
+              color: "#193D2A",
+              lineHeight: 1.4,
+              letterSpacing:
+                "-0.15px",
+              overflowWrap:
+                "anywhere",
+            }}
+          >
+            {heading}
+          </Typography>
+
+          <Box
+            sx={{
+              width: 28,
+              height: 2,
+              borderRadius: 10,
+              background:
+                "linear-gradient(90deg,#43AA70,#DCEDE3)",
+              mt: 0.55,
+            }}
+          />
+        </Box>
       );
 
       return;
     }
+
+    /* =====================================================
+       NUMBERED LIST
+    ===================================================== */
 
     const numberedMatch =
       line.match(
@@ -402,25 +443,41 @@ const renderAIAnswer = (
           key={`number-${index}`}
           sx={{
             display: "flex",
-            gap: 1,
+            gap: {
+              xs: 0.8,
+              sm: 1,
+            },
             alignItems:
               "flex-start",
-            mb: 0.55,
+            mb: 0.75,
+            minWidth: 0,
           }}
         >
           <Box
             sx={{
-              width: 22,
-              height: 22,
+              width: {
+                xs: 22,
+                sm: 24,
+              },
+              height: {
+                xs: 22,
+                sm: 24,
+              },
               borderRadius: "50%",
               flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "#EAF7EF",
+              background:
+                "linear-gradient(135deg,#EAF7EF,#DDF2E5)",
               color: "#168A52",
-              fontSize: "0.68rem",
-              fontWeight: 850,
+              border:
+                "1px solid #D6EADF",
+              fontSize: {
+                xs: "0.64rem",
+                sm: "0.68rem",
+              },
+              fontWeight: 800,
               mt: "2px",
             }}
           >
@@ -428,9 +485,13 @@ const renderAIAnswer = (
           </Box>
 
           <Typography
+            component="div"
             sx={{
               fontSize: "inherit",
               lineHeight: 1.75,
+              minWidth: 0,
+              overflowWrap:
+                "anywhere",
             }}
           >
             {renderInline(
@@ -442,6 +503,10 @@ const renderAIAnswer = (
 
       return;
     }
+
+    /* =====================================================
+       BULLETS
+    ===================================================== */
 
     if (
       line.startsWith("- ") ||
@@ -460,6 +525,10 @@ const renderAIAnswer = (
 
     flushBullets();
 
+    /* =====================================================
+       IMPORTANT / PRIORITY BOX
+    ===================================================== */
+
     const lower =
       line.toLowerCase();
 
@@ -468,30 +537,44 @@ const renderAIAnswer = (
       lower.includes("priority") ||
       lower.includes("best option") ||
       lower.includes("start with") ||
-      lower.includes("most important");
+      lower.includes("most important") ||
+      lower.includes("recommendation");
 
     if (isImportant) {
       elements.push(
         <Box
           key={`important-${index}`}
           sx={{
-            my: 0.9,
-            px: 1.35,
-            py: 1.05,
+            my: 1.15,
+            px: {
+              xs: 1.1,
+              sm: 1.4,
+            },
+            py: {
+              xs: 1,
+              sm: 1.15,
+            },
             borderRadius: 2,
             background:
-              "linear-gradient(135deg,#F0FAF4,#F8FCF9)",
+              "linear-gradient(135deg,#F1FAF4 0%,#F8FCF9 100%)",
             border:
               "1px solid #DCEDE3",
             display: "flex",
             alignItems:
               "flex-start",
-            gap: 0.9,
+            gap: {
+              xs: 0.75,
+              sm: 0.9,
+            },
+            minWidth: 0,
           }}
         >
           <LightbulbRoundedIcon
             sx={{
-              fontSize: 18,
+              fontSize: {
+                xs: 17,
+                sm: 19,
+              },
               color: "#D49627",
               mt: "2px",
               flexShrink: 0,
@@ -499,9 +582,13 @@ const renderAIAnswer = (
           />
 
           <Typography
+            component="div"
             sx={{
               fontSize: "inherit",
-              lineHeight: 1.7,
+              lineHeight: 1.72,
+              minWidth: 0,
+              overflowWrap:
+                "anywhere",
             }}
           >
             {renderInline(line)}
@@ -512,13 +599,24 @@ const renderAIAnswer = (
       return;
     }
 
+    /* =====================================================
+       NORMAL PARAGRAPH
+    ===================================================== */
+
     elements.push(
       <Typography
         key={`text-${index}`}
+        component="div"
         sx={{
           fontSize: "inherit",
-          lineHeight: 1.78,
+          lineHeight: {
+            xs: 1.72,
+            sm: 1.78,
+          },
           color: "inherit",
+          overflowWrap:
+            "anywhere",
+          mb: 0.35,
         }}
       >
         {renderInline(line)}
@@ -529,7 +627,12 @@ const renderAIAnswer = (
   flushBullets();
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box
+      sx={{
+        width: "100%",
+        minWidth: 0,
+      }}
+    >
       {elements}
     </Box>
   );
@@ -560,6 +663,11 @@ const AIAssistant = () => {
 
   const fileInputRef =
     useRef<HTMLInputElement | null>(
+      null
+    );
+
+  const recognitionRef =
+    useRef<SpeechRecognitionLike | null>(
       null
     );
 
@@ -601,10 +709,15 @@ const AIAssistant = () => {
     ]);
 
     setQuestion("");
-
     setLoading(true);
 
     try {
+      /*
+       * Existing backend contract is preserved.
+       * The selected file is shown in the UI and its
+       * filename is included in the question.
+       */
+
       const response =
         await api.post<AIResponse>(
           "/ai/ask",
@@ -663,7 +776,7 @@ const AIAssistant = () => {
   };
 
   /* =======================================================
-     RECEIVE SEARCH FROM TOPBAR
+     URL QUESTION
   ======================================================= */
 
   useEffect(() => {
@@ -688,6 +801,16 @@ const AIAssistant = () => {
   }, [searchParams]);
 
   /* =======================================================
+     CLEANUP SPEECH
+  ======================================================= */
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  /* =======================================================
      ENTER HANDLER
   ======================================================= */
 
@@ -709,14 +832,12 @@ const AIAssistant = () => {
   ======================================================= */
 
   const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: ChangeEvent<HTMLInputElement>
   ) => {
     const file =
       event.target.files?.[0];
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     setAttachedFile(file);
 
@@ -725,92 +846,86 @@ const AIAssistant = () => {
         `Please analyze this file: ${file.name}`
       );
     }
+
+    /*
+     * Allow selecting the same file again
+     * after removing it.
+     */
+    event.target.value = "";
   };
 
   /* =======================================================
+     REMOVE FILE
+  ======================================================= */
+
+  const removeAttachment = () => {
+    setAttachedFile(null);
+
+    if (
+      question.startsWith(
+        "Please analyze this file:"
+      )
+    ) {
+      setQuestion("");
+    }
+  };
+
+  /* =======================================================
+     FILE TYPE
+  ======================================================= */
+
+  const isImage =
+    attachedFile?.type.startsWith(
+      "image/"
+    ) ?? false;
+
+  const isPDF =
+    attachedFile?.type ===
+    "application/pdf";
+
+  /* =======================================================
+     IMAGE PREVIEW URL
+  ======================================================= */
+
+  const imagePreview =
+    isImage && attachedFile
+      ? URL.createObjectURL(
+          attachedFile
+        )
+      : null;
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(
+          imagePreview
+        );
+      }
+    };
+  }, [imagePreview]);
+
+  /* =======================================================
      MICROPHONE
+     FIXED DUPLICATE TRANSCRIPT BUG
   ======================================================= */
 
   const handleMic = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
     const SpeechRecognition =
       (
         window as unknown as {
-          SpeechRecognition?: new () => {
-            lang: string;
-            interimResults: boolean;
-            continuous: boolean;
-            start: () => void;
-            stop: () => void;
-            onresult:
-              | ((event: {
-                  results: {
-                    [index: number]: {
-                      [index: number]: {
-                        transcript: string;
-                      };
-                    };
-                  };
-                }) => void)
-              | null;
-            onend:
-              | (() => void)
-              | null;
-            onerror:
-              | (() => void)
-              | null;
-          };
-          webkitSpeechRecognition?: new () => {
-            lang: string;
-            interimResults: boolean;
-            continuous: boolean;
-            start: () => void;
-            stop: () => void;
-            onresult:
-              | ((event: {
-                  results: {
-                    [index: number]: {
-                      [index: number]: {
-                        transcript: string;
-                      };
-                    };
-                  };
-                }) => void)
-              | null;
-            onend:
-              | (() => void)
-              | null;
-            onerror:
-              | (() => void)
-              | null;
-          };
+          SpeechRecognition?: new () => SpeechRecognitionLike;
+          webkitSpeechRecognition?: new () => SpeechRecognitionLike;
         }
       ).SpeechRecognition ||
       (
         window as unknown as {
-          webkitSpeechRecognition?: new () => {
-            lang: string;
-            interimResults: boolean;
-            continuous: boolean;
-            start: () => void;
-            stop: () => void;
-            onresult:
-              | ((event: {
-                  results: {
-                    [index: number]: {
-                      [index: number]: {
-                        transcript: string;
-                      };
-                    };
-                  };
-                }) => void)
-              | null;
-            onend:
-              | (() => void)
-              | null;
-            onerror:
-              | (() => void)
-              | null;
-          };
+          webkitSpeechRecognition?: new () => SpeechRecognitionLike;
         }
       ).webkitSpeechRecognition;
 
@@ -818,7 +933,6 @@ const AIAssistant = () => {
       setError(
         "Voice input is not supported in this browser."
       );
-
       return;
     }
 
@@ -826,43 +940,85 @@ const AIAssistant = () => {
       const recognition =
         new SpeechRecognition();
 
-      recognition.lang =
-        "en-IN";
+      recognitionRef.current =
+        recognition;
 
-      recognition.interimResults =
-        true;
+      recognition.lang = "en-IN";
 
+      /*
+       * Important:
+       * We intentionally use interim results,
+       * but replace the voice portion instead
+       * of appending every interim result.
+       */
+      recognition.interimResults = true;
       recognition.continuous = false;
 
+      const baseText =
+        question.trim();
+
+      let finalTranscript = "";
+
+      setError("");
       setIsListening(true);
 
-      recognition.onresult =
-        (event) => {
-          let transcript = "";
+      recognition.onresult = (
+        event
+      ) => {
+        let currentTranscript =
+          "";
 
+        const resultKeys =
           Object.keys(
             event.results
-          ).forEach((key) => {
+          );
+
+        resultKeys.forEach(
+          (key) => {
             const index =
               Number(key);
 
-            transcript +=
-              event.results[index][0]
-                ?.transcript || "";
-          });
+            const result =
+              event.results[index];
 
-          setQuestion(
-            (previous) =>
-              `${previous}${previous ? " " : ""}${transcript}`.trim()
-          );
-        };
+            if (result?.[0]) {
+              currentTranscript +=
+                result[0]
+                  .transcript;
+            }
+          }
+        );
+
+        /*
+         * Prevent repeated text:
+         * browser sends cumulative interim
+         * results, so don't append them.
+         */
+        finalTranscript =
+          currentTranscript.trim();
+
+        const combined =
+          baseText &&
+          finalTranscript
+            ? `${baseText} ${finalTranscript}`
+            : baseText ||
+              finalTranscript;
+
+        setQuestion(
+          combined.trim()
+        );
+      };
 
       recognition.onend = () => {
         setIsListening(false);
+        recognitionRef.current =
+          null;
       };
 
       recognition.onerror = () => {
         setIsListening(false);
+        recognitionRef.current =
+          null;
 
         setError(
           "Unable to capture voice. Please try again."
@@ -870,19 +1026,21 @@ const AIAssistant = () => {
       };
 
       recognition.start();
-    } catch (error) {
+    } catch (speechError) {
       console.error(
         "Speech recognition error:",
-        error
+        speechError
       );
 
       setIsListening(false);
+      recognitionRef.current =
+        null;
     }
   };
 
-  /* =======================================================
+  /* =========================================================
      UI
-  ======================================================= */
+  ========================================================= */
 
   return (
     <Box
@@ -896,15 +1054,16 @@ const AIAssistant = () => {
           "linear-gradient(180deg,#F7FBF8 0%,#FFFFFF 48%,#F8FBF9 100%)",
 
         px: {
-          xs: 1.2,
-          sm: 2,
-          md: 3,
+          xs: 0.6,
+          sm: 1.5,
+          md: 2.5,
+          lg: 3,
         },
 
         py: {
-          xs: 1.2,
-          sm: 1.8,
-          md: 2.2,
+          xs: 0.7,
+          sm: 1.4,
+          md: 2,
         },
       }}
     >
@@ -921,29 +1080,47 @@ const AIAssistant = () => {
         }}
       >
         {/* =================================================
-            TOP BRAND
+            BRAND
         ================================================= */}
 
         <Box
           sx={{
             flexShrink: 0,
             pb: {
-              xs: 1.2,
-              sm: 1.5,
+              xs: 0.8,
+              sm: 1.2,
+              md: 1.5,
+            },
+            px: {
+              xs: 0.35,
+              sm: 0,
             },
           }}
         >
-<Stack
-  direction="row"
-  spacing={1.2}
-  sx={{
-    alignItems: "center",
-  }}
->            <Box
+          <Stack
+            direction="row"
+            spacing={{
+              xs: 0.9,
+              sm: 1.2,
+            }}
+            sx={{
+              alignItems: "center",
+            }}
+          >
+            <Box
               sx={{
-                width: 38,
-                height: 38,
-                borderRadius: 2.2,
+                width: {
+                  xs: 34,
+                  sm: 38,
+                },
+                height: {
+                  xs: 34,
+                  sm: 38,
+                },
+                borderRadius: {
+                  xs: 1.8,
+                  sm: 2.2,
+                },
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -955,25 +1132,37 @@ const AIAssistant = () => {
 
                 border:
                   "1px solid #DCEDE3",
+
+                flexShrink: 0,
               }}
             >
               <AutoAwesomeRoundedIcon
-                sx={{ fontSize: 20 }}
+                sx={{
+                  fontSize: {
+                    xs: 18,
+                    sm: 20,
+                  },
+                }}
               />
             </Box>
 
-            <Box>
+            <Box
+              sx={{
+                minWidth: 0,
+              }}
+            >
               <Typography
                 sx={{
                   fontSize: {
-                    xs: "1.02rem",
-                    sm: "1.12rem",
+                    xs: "0.94rem",
+                    sm: "1.08rem",
+                    md: "1.12rem",
                   },
-
                   fontWeight: 850,
                   color: "#193D2A",
                   letterSpacing:
                     "-0.35px",
+                  lineHeight: 1.2,
                 }}
               >
                 AI Assistant
@@ -982,22 +1171,30 @@ const AIAssistant = () => {
               <Typography
                 sx={{
                   fontSize: {
-                    xs: "0.65rem",
-                    sm: "0.7rem",
+                    xs: "0.58rem",
+                    sm: "0.68rem",
+                    md: "0.7rem",
                   },
-
                   color: "#87968E",
-                  mt: 0.1,
+                  mt: 0.15,
+                  whiteSpace: {
+                    xs: "normal",
+                    sm: "nowrap",
+                  },
+                  overflow: "hidden",
+                  textOverflow:
+                    "ellipsis",
                 }}
               >
-                Personalized sustainability insights
+                Personalized sustainability
+                insights
               </Typography>
             </Box>
           </Stack>
         </Box>
 
         {/* =================================================
-            CHAT CARD
+            MAIN CHAT CARD
         ================================================= */}
 
         <Paper
@@ -1013,9 +1210,10 @@ const AIAssistant = () => {
             overflow: "hidden",
 
             borderRadius: {
-              xs: 3,
-              sm: 3.5,
-              md: 4,
+              xs: 2.5,
+              sm: 3,
+              md: 3.5,
+              lg: 4,
             },
 
             background: "#FFFFFF",
@@ -1036,14 +1234,15 @@ const AIAssistant = () => {
               flexShrink: 0,
 
               px: {
-                xs: 1.5,
-                sm: 2.2,
+                xs: 1.1,
+                sm: 2,
                 md: 2.8,
               },
 
               py: {
-                xs: 1.25,
-                sm: 1.4,
+                xs: 0.9,
+                sm: 1.25,
+                md: 1.4,
               },
 
               borderBottom:
@@ -1055,13 +1254,18 @@ const AIAssistant = () => {
               zIndex: 5,
             }}
           >
-<Stack
-  direction="row"
-  spacing={1.25}
-  sx={{
-    alignItems: "center",
-  }}
->              <Box
+            <Stack
+              direction="row"
+              spacing={{
+                xs: 0.85,
+                sm: 1.25,
+              }}
+              sx={{
+                alignItems: "center",
+                minWidth: 0,
+              }}
+            >
+              <Box
                 sx={{
                   position: "relative",
                   flexShrink: 0,
@@ -1069,37 +1273,50 @@ const AIAssistant = () => {
               >
                 <Avatar
                   sx={{
-                    width: 42,
-                    height: 42,
-
+                    width: {
+                      xs: 36,
+                      sm: 42,
+                    },
+                    height: {
+                      xs: 36,
+                      sm: 42,
+                    },
                     background:
                       "linear-gradient(135deg,#35A86B,#168A52)",
-
                     color: "#FFFFFF",
-
                     boxShadow:
                       "0 6px 18px rgba(22,138,82,0.18)",
                   }}
                 >
                   <SmartToyRoundedIcon
-                    sx={{ fontSize: 22 }}
+                    sx={{
+                      fontSize: {
+                        xs: 19,
+                        sm: 22,
+                      },
+                    }}
                   />
                 </Avatar>
 
                 <Box
                   sx={{
-                    position: "absolute",
-                    width: 10,
-                    height: 10,
+                    position:
+                      "absolute",
+                    width: {
+                      xs: 9,
+                      sm: 10,
+                    },
+                    height: {
+                      xs: 9,
+                      sm: 10,
+                    },
                     right: -1,
                     bottom: 0,
                     borderRadius: "50%",
-
                     background:
                       loading
                         ? "#E2A42C"
                         : "#45C47B",
-
                     border:
                       "2px solid #FFFFFF",
                   }}
@@ -1112,21 +1329,28 @@ const AIAssistant = () => {
                   flex: 1,
                 }}
               >
-<Stack
-  direction="row"
-  spacing={0.8}
-  sx={{
-    alignItems: "center",
-  }}
->                  <Typography
+                <Stack
+                  direction="row"
+                  spacing={0.7}
+                  sx={{
+                    alignItems: "center",
+                    minWidth: 0,
+                  }}
+                >
+                  <Typography
                     sx={{
                       fontSize: {
-                        xs: "0.9rem",
-                        sm: "0.96rem",
+                        xs: "0.8rem",
+                        sm: "0.94rem",
                       },
-
                       fontWeight: 800,
                       color: "#193D2A",
+                      whiteSpace:
+                        "nowrap",
+                      overflow:
+                        "hidden",
+                      textOverflow:
+                        "ellipsis",
                     }}
                   >
                     CarbonTrack AI
@@ -1140,28 +1364,31 @@ const AIAssistant = () => {
                     }
                     size="small"
                     sx={{
-                      height: 21,
+                      height: {
+                        xs: 19,
+                        sm: 21,
+                      },
                       fontSize:
-                        "0.61rem",
+                        "0.58rem",
                       fontWeight: 750,
-
                       color: loading
                         ? "#98670F"
                         : "#168A52",
-
                       background:
                         loading
                           ? "#FFF7E7"
                           : "#EEF9F2",
-
                       border:
                         loading
                           ? "1px solid #F2E2B9"
                           : "1px solid #D9EEDF",
-
+                      flexShrink: 0,
                       "& .MuiChip-label":
                         {
-                          px: 0.85,
+                          px: {
+                            xs: 0.65,
+                            sm: 0.85,
+                          },
                         },
                     }}
                   />
@@ -1171,12 +1398,21 @@ const AIAssistant = () => {
                   sx={{
                     mt: 0.15,
                     color: "#83938B",
-                    fontSize:
-                      "0.68rem",
+                    fontSize: {
+                      xs: "0.58rem",
+                      sm: "0.66rem",
+                    },
                     lineHeight: 1.4,
+                    whiteSpace:
+                      "nowrap",
+                    overflow:
+                      "hidden",
+                    textOverflow:
+                      "ellipsis",
                   }}
                 >
-                  Your personal sustainability companion
+                  Your personal sustainability
+                  companion
                 </Typography>
               </Box>
 
@@ -1186,6 +1422,7 @@ const AIAssistant = () => {
                     xs: "none",
                     sm: "block",
                   },
+                  flexShrink: 0,
                 }}
               >
                 <Chip
@@ -1204,18 +1441,15 @@ const AIAssistant = () => {
                     color: "#377356",
                     background:
                       "#F1F8F4",
-
                     border:
                       "1px solid #DFECE3",
-
                     fontSize:
                       "0.65rem",
-
                     fontWeight: 700,
-
-                    "& .MuiChip-icon": {
-                      color: "#48A874",
-                    },
+                    "& .MuiChip-icon":
+                      {
+                        color: "#48A874",
+                      },
                   }}
                 />
               </Box>
@@ -1223,7 +1457,7 @@ const AIAssistant = () => {
           </Box>
 
           {/* =================================================
-              MESSAGES SCROLL AREA
+              MESSAGES
           ================================================= */}
 
           <Box
@@ -1235,21 +1469,23 @@ const AIAssistant = () => {
               overflowX: "hidden",
 
               px: {
-                xs: 1.5,
-                sm: 2.5,
-                md: 4,
+                xs: 1,
+                sm: 2,
+                md: 3,
+                lg: 4,
               },
 
               py: {
-                xs: 1.8,
-                sm: 2.4,
-                md: 3,
+                xs: 1.4,
+                sm: 2,
+                md: 2.5,
+                lg: 3,
               },
 
               pb: {
-                xs: 3,
-                sm: 3.5,
-                md: 4,
+                xs: 2.5,
+                sm: 3,
+                md: 3.5,
               },
 
               background:
@@ -1260,9 +1496,10 @@ const AIAssistant = () => {
               scrollbarColor:
                 "#C9DCD1 transparent",
 
-              "&::-webkit-scrollbar": {
-                width: 6,
-              },
+              "&::-webkit-scrollbar":
+                {
+                  width: 5,
+                },
 
               "&::-webkit-scrollbar-track":
                 {
@@ -1274,71 +1511,77 @@ const AIAssistant = () => {
                 {
                   background:
                     "#C9DCD1",
-
                   borderRadius: 20,
                 },
             }}
           >
             {messages.length === 0 ? (
+              /* =================================================
+                 EMPTY STATE
+              ================================================= */
+
               <Box
                 sx={{
                   minHeight: "100%",
-
                   display: "flex",
-
                   alignItems: "center",
-
-                  justifyContent: "center",
-
-                  px: 2,
+                  justifyContent:
+                    "center",
+                  px: {
+                    xs: 0.8,
+                    sm: 2,
+                  },
+                  py: {
+                    xs: 1.5,
+                    sm: 2,
+                  },
                 }}
               >
-<Stack
-  sx={{
-    maxWidth: 650,
-    alignItems: "center",
-    textAlign: "center",
-  }}
->                  <Box
+                <Stack
+                  sx={{
+                    width: "100%",
+                    maxWidth: 680,
+                    alignItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <Box
                     sx={{
                       position:
                         "relative",
-                      mb: 2.4,
+                      mb: {
+                        xs: 1.7,
+                        sm: 2.4,
+                      },
                     }}
                   >
                     <Box
                       sx={{
                         width: {
-                          xs: 74,
-                          sm: 86,
+                          xs: 64,
+                          sm: 78,
+                          md: 86,
                         },
-
                         height: {
-                          xs: 74,
-                          sm: 86,
+                          xs: 64,
+                          sm: 78,
+                          md: 86,
                         },
-
-                        borderRadius:
-                          "27px",
-
-                        display:
-                          "flex",
-
+                        borderRadius: {
+                          xs: "21px",
+                          sm: "25px",
+                          md: "27px",
+                        },
+                        display: "flex",
                         alignItems:
                           "center",
-
                         justifyContent:
                           "center",
-
                         background:
                           "linear-gradient(145deg,#EAF8EF,#DDF3E5)",
-
-                        color:
-                          "#168A52",
-
+                        color: "#168A52",
                         border:
                           "1px solid #DCEDE3",
-
                         boxShadow:
                           "0 16px 35px rgba(22,138,82,0.10)",
                       }}
@@ -1346,8 +1589,9 @@ const AIAssistant = () => {
                       <AutoAwesomeRoundedIcon
                         sx={{
                           fontSize: {
-                            xs: 35,
-                            sm: 41,
+                            xs: 29,
+                            sm: 37,
+                            md: 41,
                           },
                         }}
                       />
@@ -1357,19 +1601,26 @@ const AIAssistant = () => {
                       sx={{
                         position:
                           "absolute",
-
-                        width: 11,
-                        height: 11,
-
-                        right: -3,
-                        top: 8,
-
+                        width: {
+                          xs: 9,
+                          sm: 11,
+                        },
+                        height: {
+                          xs: 9,
+                          sm: 11,
+                        },
+                        right: {
+                          xs: -2,
+                          sm: -3,
+                        },
+                        top: {
+                          xs: 6,
+                          sm: 8,
+                        },
                         borderRadius:
                           "50%",
-
                         background:
                           "#86DCAA",
-
                         border:
                           "3px solid #FFFFFF",
                       }}
@@ -1379,16 +1630,15 @@ const AIAssistant = () => {
                   <Typography
                     sx={{
                       fontSize: {
-                        xs: "1.18rem",
-                        sm: "1.35rem",
+                        xs: "1.05rem",
+                        sm: "1.25rem",
+                        md: "1.35rem",
                       },
-
                       fontWeight: 850,
-
                       color: "#193D2A",
-
                       letterSpacing:
                         "-0.45px",
+                      lineHeight: 1.3,
                     }}
                   >
                     How can I help you?
@@ -1396,41 +1646,47 @@ const AIAssistant = () => {
 
                   <Typography
                     sx={{
-                      mt: 0.9,
-
+                      mt: 0.8,
+                      width: "100%",
                       maxWidth: 570,
-
                       color: "#7B8C83",
-
                       fontSize: {
-                        xs: "0.78rem",
-                        sm: "0.84rem",
+                        xs: "0.72rem",
+                        sm: "0.8rem",
+                        md: "0.84rem",
                       },
-
-                      lineHeight: 1.75,
+                      lineHeight: 1.7,
+                      px: {
+                        xs: 0.5,
+                        sm: 0,
+                      },
                     }}
                   >
                     Ask me anything about your
                     carbon footprint,
                     sustainability,
-                    transportation,
-                    energy, food, or
-                    reduction goals.
+                    transportation, energy,
+                    food, or reduction goals.
                   </Typography>
 
+                  {/* TOPICS */}
 
-
-<Stack
-  direction="row"
-  spacing={0.8}
-  useFlexGap
-  sx={{
-    mt: 2.2,
-    flexWrap: "wrap",
-    justifyContent: "center",
-  }}
->
-
+                  <Stack
+                    direction="row"
+                    spacing={0.7}
+                    useFlexGap
+                    sx={{
+                      mt: {
+                        xs: 1.6,
+                        sm: 2.2,
+                      },
+                      flexWrap:
+                        "wrap",
+                      justifyContent:
+                        "center",
+                      width: "100%",
+                    }}
+                  >
                     {[
                       "🌱 Footprint",
                       "🚗 Transport",
@@ -1442,41 +1698,48 @@ const AIAssistant = () => {
                         label={item}
                         size="small"
                         sx={{
-                          height: 28,
-
+                          height: {
+                            xs: 26,
+                            sm: 28,
+                          },
                           background:
                             "#F5F9F6",
-
                           border:
                             "1px solid #E1EAE4",
-
                           color:
                             "#64776C",
-
-                          fontSize:
-                            "0.66rem",
-
+                          fontSize: {
+                            xs: "0.6rem",
+                            sm: "0.66rem",
+                          },
                           fontWeight: 650,
                         }}
                       />
                     ))}
                   </Stack>
 
+                  {/* QUICK ACTIONS */}
 
-
-<Stack
-  direction="row"
-  spacing={1}
-  useFlexGap
-  sx={{
-    mt: 2.2,
-    maxWidth: 620,
-    flexWrap: "wrap",
-    justifyContent: "center",
-  }}
->
-
-
+                  <Stack
+                    direction="row"
+                    spacing={{
+                      xs: 0.7,
+                      sm: 1,
+                    }}
+                    useFlexGap
+                    sx={{
+                      mt: {
+                        xs: 1.5,
+                        sm: 2.2,
+                      },
+                      width: "100%",
+                      maxWidth: 620,
+                      flexWrap:
+                        "wrap",
+                      justifyContent:
+                        "center",
+                    }}
+                  >
                     {quickActions
                       .slice(0, 3)
                       .map(
@@ -1501,42 +1764,46 @@ const AIAssistant = () => {
                               )
                             }
                             sx={{
-                              height: 34,
-
+                              height: {
+                                xs: 32,
+                                sm: 34,
+                              },
+                              maxWidth: {
+                                xs: "100%",
+                                sm: "none",
+                              },
                               background:
                                 "#FFFFFF",
-
                               border:
                                 "1px solid #DDE8E1",
-
                               color:
                                 "#486456",
-
-                              fontSize:
-                                "0.68rem",
-
+                              fontSize: {
+                                xs: "0.61rem",
+                                sm: "0.68rem",
+                              },
                               fontWeight:
                                 700,
-
                               transition:
                                 "all 180ms ease",
-
                               "&:hover":
                                 {
                                   background:
                                     "#F1F9F4",
-
                                   borderColor:
                                     "#C7E1D1",
-
                                   color:
                                     "#168A52",
                                 },
-
                               "& .MuiChip-icon":
                                 {
                                   color:
                                     "#48A874",
+                                  fontSize:
+                                    {
+                                      xs: "16px",
+                                      sm: "18px",
+                                    },
                                 },
                             }}
                           />
@@ -1546,10 +1813,15 @@ const AIAssistant = () => {
                 </Stack>
               </Box>
             ) : (
+              /* =================================================
+                 CHAT MESSAGES
+              ================================================= */
+
               <Stack
                 spacing={{
-                  xs: 2.2,
-                  sm: 2.7,
+                  xs: 1.8,
+                  sm: 2.4,
+                  md: 2.7,
                 }}
               >
                 {messages.map(
@@ -1566,17 +1838,13 @@ const AIAssistant = () => {
                         sx={{
                           display:
                             "flex",
-
                           justifyContent:
                             isUser
                               ? "flex-end"
                               : "flex-start",
-
                           width: "100%",
-
                           animation:
                             "messageIn 220ms ease-out",
-
                           "@keyframes messageIn":
                             {
                               from: {
@@ -1584,7 +1852,6 @@ const AIAssistant = () => {
                                 transform:
                                   "translateY(5px)",
                               },
-
                               to: {
                                 opacity: 1,
                                 transform:
@@ -1597,50 +1864,53 @@ const AIAssistant = () => {
                           sx={{
                             display:
                               "flex",
-
                             flexDirection:
                               isUser
                                 ? "row-reverse"
                                 : "row",
-
                             alignItems:
                               "flex-start",
-
-                            gap: 1,
-
+                            gap: {
+                              xs: 0.65,
+                              sm: 1,
+                            },
                             width: "100%",
-
                             maxWidth:
                               isUser
                                 ? {
-                                    xs: "92%",
-                                    sm: "80%",
+                                    xs: "96%",
+                                    sm: "82%",
                                     md: "72%",
                                   }
                                 : {
-                                    xs: "96%",
-                                    sm: "92%",
-                                    md: "86%",
+                                    xs: "99%",
+                                    sm: "94%",
+                                    md: "88%",
                                   },
+                            minWidth: 0,
                           }}
                         >
+                          {/* AVATAR */}
+
                           <Avatar
                             sx={{
-                              width: 34,
-                              height: 34,
-
+                              width: {
+                                xs: 30,
+                                sm: 34,
+                              },
+                              height: {
+                                xs: 30,
+                                sm: 34,
+                              },
                               flexShrink: 0,
-
                               background:
                                 isUser
                                   ? "#F0F4F1"
                                   : "#EAF7EF",
-
                               color:
                                 isUser
                                   ? "#64756C"
                                   : "#168A52",
-
                               border:
                                 "1px solid #DFE9E3",
                             }}
@@ -1649,38 +1919,44 @@ const AIAssistant = () => {
                               <PersonRoundedIcon
                                 sx={{
                                   fontSize:
-                                    17,
+                                    {
+                                      xs: 15,
+                                      sm: 17,
+                                    },
                                 }}
                               />
                             ) : (
                               <SmartToyRoundedIcon
                                 sx={{
                                   fontSize:
-                                    18,
+                                    {
+                                      xs: 16,
+                                      sm: 18,
+                                    },
                                 }}
                               />
                             )}
                           </Avatar>
 
+                          {/* CONTENT */}
+
                           <Box
                             sx={{
                               minWidth: 0,
                               flex: 1,
+                              overflow:
+                                "hidden",
                             }}
                           >
                             <Typography
                               sx={{
                                 fontSize:
-                                  "0.65rem",
-
+                                  "0.62rem",
                                 fontWeight:
                                   750,
-
                                 color:
                                   "#94A099",
-
-                                mb: 0.5,
-
+                                mb: 0.45,
                                 textAlign:
                                   isUser
                                     ? "right"
@@ -1696,53 +1972,45 @@ const AIAssistant = () => {
                               elevation={0}
                               sx={{
                                 px: {
-                                  xs: 1.5,
-                                  sm: 1.9,
+                                  xs: 1.2,
+                                  sm: 1.8,
                                 },
-
                                 py: {
-                                  xs: 1.3,
-                                  sm: 1.55,
+                                  xs: 1.05,
+                                  sm: 1.5,
                                 },
-
                                 borderRadius:
                                   isUser
-                                    ? "18px 18px 5px 18px"
-                                    : "5px 18px 18px 18px",
-
+                                    ? "17px 17px 5px 17px"
+                                    : "5px 17px 17px 17px",
                                 background:
                                   isUser
                                     ? "linear-gradient(135deg,#39A96D,#168A52)"
                                     : "#F8FBF9",
-
                                 color:
                                   isUser
                                     ? "#FFFFFF"
                                     : "#31483C",
-
                                 border:
                                   isUser
                                     ? "none"
                                     : "1px solid #E1EAE4",
-
                                 boxShadow:
                                   isUser
                                     ? "0 7px 18px rgba(22,138,82,0.14)"
                                     : "0 4px 16px rgba(30,75,49,0.035)",
-
                                 fontSize: {
-                                  xs: "0.82rem",
-                                  sm: "0.87rem",
+                                  xs: "0.78rem",
+                                  sm: "0.88rem",
                                 },
-
                                 lineHeight:
-                                  1.78,
-
+                                  1.75,
                                 overflowWrap:
                                   "anywhere",
-
                                 wordBreak:
                                   "break-word",
+                                minWidth: 0,
+                                width: "100%",
                               }}
                             >
                               {isUser
@@ -1758,38 +2026,49 @@ const AIAssistant = () => {
                   }
                 )}
 
-                {/* =================================================
-                    AI THINKING
-                ================================================= */}
+                {/* THINKING */}
 
                 {loading && (
                   <Box
                     sx={{
-                      display: "flex",
+                      display:
+                        "flex",
                       alignItems:
                         "flex-start",
-                      gap: 1,
-                      maxWidth: "86%",
+                      gap: {
+                        xs: 0.65,
+                        sm: 1,
+                      },
+                      maxWidth: {
+                        xs: "98%",
+                        sm: "86%",
+                      },
                     }}
                   >
                     <Avatar
                       sx={{
-                        width: 34,
-                        height: 34,
-
+                        width: {
+                          xs: 30,
+                          sm: 34,
+                        },
+                        height: {
+                          xs: 30,
+                          sm: 34,
+                        },
                         background:
                           "#EAF7EF",
-
                         color:
                           "#168A52",
-
                         border:
                           "1px solid #DFE9E3",
                       }}
                     >
                       <SmartToyRoundedIcon
                         sx={{
-                          fontSize: 18,
+                          fontSize: {
+                            xs: 16,
+                            sm: 18,
+                          },
                         }}
                       />
                     </Avatar>
@@ -1797,26 +2076,32 @@ const AIAssistant = () => {
                     <Paper
                       elevation={0}
                       sx={{
-                        px: 1.7,
-                        py: 1.25,
-
+                        px: {
+                          xs: 1.25,
+                          sm: 1.7,
+                        },
+                        py: {
+                          xs: 1,
+                          sm: 1.25,
+                        },
                         borderRadius:
                           "5px 18px 18px 18px",
-
                         background:
                           "#F8FBF9",
-
                         border:
                           "1px solid #E1EAE4",
+                        minWidth: 0,
                       }}
                     >
-<Stack
-  direction="row"
-  spacing={1}
-  sx={{
-    alignItems: "center",
-  }}
->                        <Box
+                      <Stack
+                        direction="row"
+                        spacing={0.9}
+                        sx={{
+                          alignItems:
+                            "center",
+                        }}
+                      >
+                        <Box
                           sx={{
                             display:
                               "flex",
@@ -1832,37 +2117,30 @@ const AIAssistant = () => {
                                 sx={{
                                   width: 5,
                                   height: 5,
-
                                   borderRadius:
                                     "50%",
-
                                   background:
                                     "#55B982",
-
                                   animation:
                                     "thinkingDot 1.2s infinite",
-
                                   animationDelay:
                                     `${dot * 0.18}s`,
-
                                   "@keyframes thinkingDot":
                                     {
                                       "0%, 60%, 100%":
                                         {
                                           opacity:
                                             0.3,
-
                                           transform:
                                             "translateY(0)",
                                         },
-
-                                      "30%": {
-                                        opacity:
-                                          1,
-
-                                        transform:
-                                          "translateY(-3px)",
-                                      },
+                                      "30%":
+                                        {
+                                          opacity:
+                                            1,
+                                          transform:
+                                            "translateY(-3px)",
+                                        },
                                     },
                                 }}
                               />
@@ -1872,14 +2150,18 @@ const AIAssistant = () => {
 
                         <Typography
                           sx={{
-                            fontSize:
-                              "0.74rem",
-
+                            fontSize: {
+                              xs: "0.66rem",
+                              sm: "0.74rem",
+                            },
                             color:
                               "#819189",
+                            whiteSpace:
+                              "nowrap",
                           }}
                         >
-                          CarbonTrack AI is thinking…
+                          CarbonTrack AI is
+                          thinking…
                         </Typography>
                       </Stack>
                     </Paper>
@@ -1896,25 +2178,26 @@ const AIAssistant = () => {
           {error && (
             <Alert
               severity="error"
+              onClose={() =>
+                setError("")
+              }
               sx={{
                 mx: {
-                  xs: 1,
+                  xs: 0.8,
                   sm: 2,
                   md: 4,
                 },
-
-                mt: 1,
-
+                mt: 0.8,
                 borderRadius: 2,
-
-                py: 0.2,
-
-                fontSize:
-                  "0.72rem",
-
+                py: 0.15,
+                fontSize: "0.7rem",
                 flexShrink: 0,
-
                 zIndex: 15,
+                "& .MuiAlert-message":
+                  {
+                    overflowWrap:
+                      "anywhere",
+                  },
               }}
             >
               {error}
@@ -1922,30 +2205,29 @@ const AIAssistant = () => {
           )}
 
           {/* =================================================
-              CHATGPT-STYLE BOTTOM COMPOSER
+              COMPOSER
           ================================================= */}
 
           <Box
             sx={{
-              position: "sticky",
-              bottom: 0,
-
               flexShrink: 0,
 
               px: {
-                xs: 1,
-                sm: 2,
+                xs: 0.65,
+                sm: 1.5,
                 md: 3.5,
               },
 
               pt: {
-                xs: 0.8,
-                sm: 1,
+                xs: 0.65,
+                sm: 0.9,
+                md: 1,
               },
 
               pb: {
-                xs: 0.8,
-                sm: 1,
+                xs: 0.65,
+                sm: 0.9,
+                md: 1,
               },
 
               background:
@@ -1967,76 +2249,174 @@ const AIAssistant = () => {
             }}
           >
             {/* =================================================
-                FILE PREVIEW
+                ATTACHMENT PREVIEW
             ================================================= */}
 
             {attachedFile && (
               <Box
                 sx={{
                   mb: 0.8,
-
                   display: "flex",
-
-                  alignItems:
-                    "center",
-
-                  justifyContent:
-                    "space-between",
-
-                  px: 1.2,
-                  py: 0.7,
-
-                  borderRadius: 1.8,
-
+                  alignItems: "center",
+                  gap: 1,
+                  px: {
+                    xs: 0.9,
+                    sm: 1.1,
+                  },
+                  py: 0.65,
+                  borderRadius: 2,
                   background:
-                    "#F2F8F4",
-
+                    "#F5FAF7",
                   border:
-                    "1px solid #DDEBE2",
+                    "1px solid #DCEBE2",
+                  minWidth: 0,
                 }}
               >
-                <Typography
+                {/* IMAGE PREVIEW */}
+
+                {isImage &&
+                imagePreview ? (
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      border:
+                        "1px solid #D9E8DF",
+                      background:
+                        "#EEF6F1",
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={
+                        imagePreview
+                      }
+                      alt={
+                        attachedFile.name
+                      }
+                      sx={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit:
+                          "cover",
+                        display:
+                          "block",
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 1.5,
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
+                      flexShrink: 0,
+                      background:
+                        "#EAF6EF",
+                      color:
+                        isPDF
+                          ? "#C75B5B"
+                          : "#168A52",
+                      border:
+                        "1px solid #D9E8DF",
+                    }}
+                  >
+                    {isPDF ? (
+                      <PictureAsPdfOutlinedIcon
+                        sx={{
+                          fontSize: 22,
+                        }}
+                      />
+                    ) : (
+                      <DescriptionOutlinedIcon
+                        sx={{
+                          fontSize: 22,
+                        }}
+                      />
+                    )}
+                  </Box>
+                )}
+
+                <Box
                   sx={{
-                    fontSize:
-                      "0.68rem",
-
-                    color:
-                      "#486456",
-
-                    overflow:
-                      "hidden",
-
-                    textOverflow:
-                      "ellipsis",
-
-                    whiteSpace:
-                      "nowrap",
+                    minWidth: 0,
+                    flex: 1,
                   }}
                 >
-                  📎 {attachedFile.name}
-                </Typography>
+                  <Typography
+                    sx={{
+                      fontSize:
+                        "0.68rem",
+                      fontWeight: 750,
+                      color:
+                        "#355447",
+                      overflow:
+                        "hidden",
+                      textOverflow:
+                        "ellipsis",
+                      whiteSpace:
+                        "nowrap",
+                    }}
+                  >
+                    {attachedFile.name}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      mt: 0.1,
+                      fontSize:
+                        "0.58rem",
+                      color:
+                        "#87988F",
+                    }}
+                  >
+                    {(
+                      attachedFile.size /
+                      1024
+                    ).toFixed(1)}{" "}
+                    KB
+                  </Typography>
+                </Box>
 
                 <IconButton
                   size="small"
-                  onClick={() =>
-                    setAttachedFile(
-                      null
-                    )
+                  aria-label="Remove attachment"
+                  onClick={
+                    removeAttachment
                   }
                   sx={{
-                    width: 25,
-                    height: 25,
+                    width: 28,
+                    height: 28,
                     color:
                       "#75877D",
+                    flexShrink: 0,
+                    "&:hover": {
+                      background:
+                        "#EAF3ED",
+                      color:
+                        "#C05D5D",
+                    },
                   }}
                 >
-                  ×
+                  <CloseRoundedIcon
+                    sx={{
+                      fontSize: 17,
+                    }}
+                  />
                 </IconButton>
               </Box>
             )}
 
             {/* =================================================
-                MAIN SEARCH / MESSAGE BAR
+                MESSAGE BAR
             ================================================= */}
 
             <Paper
@@ -2045,33 +2425,34 @@ const AIAssistant = () => {
                 width: "100%",
 
                 minHeight: {
-                  xs: 58,
-                  sm: 62,
+                  xs: 52,
+                  sm: 58,
+                  md: 62,
                 },
 
                 display: "flex",
-
-                alignItems:
-                  "center",
+                alignItems: "center",
 
                 gap: {
-                  xs: 0.15,
-                  sm: 0.35,
+                  xs: 0.05,
+                  sm: 0.3,
                 },
 
                 px: {
-                  xs: 0.45,
-                  sm: 0.7,
+                  xs: 0.3,
+                  sm: 0.55,
+                  md: 0.7,
                 },
 
                 py: {
-                  xs: 0.35,
-                  sm: 0.4,
+                  xs: 0.25,
+                  sm: 0.35,
                 },
 
                 borderRadius: {
-                  xs: 3,
-                  sm: 3.2,
+                  xs: 2.7,
+                  sm: 3,
+                  md: 3.2,
                 },
 
                 background:
@@ -2084,7 +2465,7 @@ const AIAssistant = () => {
                   "0 2px 8px rgba(31,75,50,0.025)",
 
                 transition:
-                  "border-color 180ms ease, box-shadow 180ms ease, background 180ms ease",
+                  "border-color 180ms ease, box-shadow 180ms ease",
 
                 "&:hover": {
                   borderColor:
@@ -2094,18 +2475,14 @@ const AIAssistant = () => {
                 "&:focus-within": {
                   borderColor:
                     "rgba(22,138,82,0.42)",
-
                   background:
                     "#FFFFFF",
-
                   boxShadow:
                     "0 0 0 3px rgba(22,138,82,0.055)",
                 },
               }}
             >
-              {/* =================================================
-                  ATTACH FILE
-              ================================================= */}
+              {/* FILE INPUT */}
 
               <input
                 ref={fileInputRef}
@@ -2117,6 +2494,8 @@ const AIAssistant = () => {
                 }
               />
 
+              {/* ATTACH */}
+
               <IconButton
                 aria-label="Attach file"
                 disabled={loading}
@@ -2125,49 +2504,42 @@ const AIAssistant = () => {
                 }
                 sx={{
                   width: {
-                    xs: 37,
-                    sm: 39,
+                    xs: 34,
+                    sm: 38,
+                    md: 39,
                   },
-
                   height: {
-                    xs: 37,
-                    sm: 39,
+                    xs: 34,
+                    sm: 38,
+                    md: 39,
                   },
-
                   flexShrink: 0,
-
                   borderRadius: 2,
-
                   color: "#6D7E75",
-
                   "&:hover": {
                     background:
                       "#EDF7F1",
-
                     color:
                       "#168A52",
                   },
-
-                  "&.Mui-disabled": {
-                    color:
-                      "#B7C2BC",
-                  },
+                  "&.Mui-disabled":
+                    {
+                      color:
+                        "#B7C2BC",
+                    },
                 }}
               >
                 <AttachFileOutlinedIcon
                   sx={{
                     fontSize: {
-                      xs: 20,
-                      sm: 21,
+                      xs: 18,
+                      sm: 20,
                     },
                   }}
                 />
               </IconButton>
 
-              {/* =================================================
-                  IMAGE BUTTON
-                  Same existing file picker functionality
-              ================================================= */}
+              {/* IMAGE */}
 
               <IconButton
                 aria-label="Attach image"
@@ -2177,50 +2549,38 @@ const AIAssistant = () => {
                 }
                 sx={{
                   width: {
-                    xs: 35,
-                    sm: 37,
+                    xs: 34,
+                    sm: 36,
+                    md: 37,
                   },
-
                   height: {
-                    xs: 35,
-                    sm: 37,
+                    xs: 34,
+                    sm: 36,
+                    md: 37,
                   },
-
                   flexShrink: 0,
-
                   borderRadius: 2,
-
                   color: "#6D7E75",
-
-                  "&:hover": {
-                    background:
-                      "#EDF7F1",
-
-                    color:
-                      "#168A52",
-                  },
-
-                  "&.Mui-disabled": {
-                    color:
-                      "#B7C2BC",
-                  },
-
                   display: {
                     xs: "none",
                     sm: "flex",
+                  },
+                  "&:hover": {
+                    background:
+                      "#EDF7F1",
+                    color:
+                      "#168A52",
                   },
                 }}
               >
                 <ImageOutlinedIcon
                   sx={{
-                    fontSize: 20,
+                    fontSize: 19,
                   }}
                 />
               </IconButton>
 
-              {/* =================================================
-                  INPUT
-              ================================================= */}
+              {/* INPUT */}
 
               <TextField
                 fullWidth
@@ -2244,50 +2604,48 @@ const AIAssistant = () => {
                 variant="standard"
                 sx={{
                   flex: 1,
-
                   minWidth: 0,
 
                   "& .MuiInputBase-root":
                     {
                       px: {
-                        xs: 0.45,
-                        sm: 0.65,
+                        xs: 0.3,
+                        sm: 0.55,
+                        md: 0.65,
                       },
-
                       py: {
-                        xs: 0.55,
-                        sm: 0.7,
+                        xs: 0.35,
+                        sm: 0.6,
+                        md: 0.7,
                       },
-
                       fontSize: {
-                        xs: "0.88rem",
-                        sm: "0.91rem",
+                        xs: "0.78rem",
+                        sm: "0.87rem",
+                        md: "0.91rem",
                       },
-
                       color: "#294338",
-
                       lineHeight: 1.5,
-
                       minHeight:
-                        "40px",
-
-                      display: "flex",
-
+                        "38px",
+                      display:
+                        "flex",
                       alignItems:
                         "center",
+                      minWidth: 0,
                     },
 
                   "& .MuiInputBase-input":
                     {
                       lineHeight: 1.5,
-
                       maxHeight: {
-                        xs: 88,
-                        sm: 105,
+                        xs: 82,
+                        sm: 100,
+                        md: 105,
                       },
-
                       overflowY:
                         "auto !important",
+                      overflowWrap:
+                        "anywhere",
 
                       "&::-webkit-scrollbar":
                         {
@@ -2298,7 +2656,6 @@ const AIAssistant = () => {
                         {
                           background:
                             "#C9DCD1",
-
                           borderRadius:
                             10,
                         },
@@ -2307,7 +2664,6 @@ const AIAssistant = () => {
                   "& .MuiInputBase-input::placeholder":
                     {
                       color: "#98A7A0",
-
                       opacity: 1,
                     },
 
@@ -2323,9 +2679,7 @@ const AIAssistant = () => {
                 }}
               />
 
-              {/* =================================================
-                  MICROPHONE
-              ================================================= */}
+              {/* MICROPHONE */}
 
               <IconButton
                 aria-label={
@@ -2334,27 +2688,26 @@ const AIAssistant = () => {
                     : "Voice input"
                 }
                 disabled={loading}
-                onClick={handleMic}
+                onClick={
+                  handleMic
+                }
                 sx={{
                   width: {
-                    xs: 38,
-                    sm: 40,
+                    xs: 35,
+                    sm: 39,
+                    md: 40,
                   },
-
                   height: {
-                    xs: 38,
-                    sm: 40,
+                    xs: 35,
+                    sm: 39,
+                    md: 40,
                   },
-
                   flexShrink: 0,
-
                   borderRadius: 2,
-
                   color:
                     isListening
                       ? "#168A52"
                       : "#687A71",
-
                   background:
                     isListening
                       ? "#EAF7EF"
@@ -2363,30 +2716,28 @@ const AIAssistant = () => {
                   "&:hover": {
                     background:
                       "#EDF7F1",
-
                     color:
                       "#168A52",
                   },
 
-                  "&.Mui-disabled": {
-                    color:
-                      "#B7C2BC",
-                  },
+                  "&.Mui-disabled":
+                    {
+                      color:
+                        "#B7C2BC",
+                    },
                 }}
               >
                 <MicNoneRoundedIcon
                   sx={{
                     fontSize: {
-                      xs: 21,
-                      sm: 22,
+                      xs: 19,
+                      sm: 21,
                     },
                   }}
                 />
               </IconButton>
 
-              {/* =================================================
-                  SEND BUTTON
-              ================================================= */}
+              {/* SEND */}
 
               <IconButton
                 onClick={() =>
@@ -2399,19 +2750,18 @@ const AIAssistant = () => {
                 aria-label="Send message"
                 sx={{
                   width: {
-                    xs: 42,
-                    sm: 44,
+                    xs: 38,
+                    sm: 42,
+                    md: 44,
                   },
-
                   height: {
-                    xs: 42,
-                    sm: 44,
+                    xs: 38,
+                    sm: 42,
+                    md: 44,
                   },
-
                   flexShrink: 0,
-
                   borderRadius: {
-                    xs: 2.4,
+                    xs: 2.2,
                     sm: 2.5,
                   },
 
@@ -2429,27 +2779,23 @@ const AIAssistant = () => {
                   "&:hover": {
                     background:
                       "linear-gradient(135deg,#2F9C63,#117646)",
-
                     transform:
                       "translateY(-1px)",
-
                     boxShadow:
                       "0 7px 18px rgba(22,138,82,0.22)",
                   },
 
-                  "&.Mui-disabled": {
-                    background:
-                      "#E3EBE7",
-
-                    color:
-                      "#99A8A1",
-
-                    boxShadow:
-                      "none",
-
-                    transform:
-                      "none",
-                  },
+                  "&.Mui-disabled":
+                    {
+                      background:
+                        "#E3EBE7",
+                      color:
+                        "#99A8A1",
+                      boxShadow:
+                        "none",
+                      transform:
+                        "none",
+                    },
                 }}
               >
                 {loading ? (
@@ -2465,7 +2811,7 @@ const AIAssistant = () => {
                   <SendRoundedIcon
                     sx={{
                       fontSize: {
-                        xs: 19,
+                        xs: 18,
                         sm: 20,
                       },
                     }}
@@ -2475,40 +2821,37 @@ const AIAssistant = () => {
             </Paper>
 
             {/* =================================================
-                HELPER TEXT
+                HELPER
             ================================================= */}
 
             <Typography
               sx={{
                 mt: {
-                  xs: 0.55,
-                  sm: 0.65,
+                  xs: 0.45,
+                  sm: 0.6,
                 },
-
                 textAlign: "center",
-
                 color: "#9AA7A0",
-
                 fontSize: {
-                  xs: "0.56rem",
-                  sm: "0.61rem",
+                  xs: "0.5rem",
+                  sm: "0.59rem",
+                  md: "0.61rem",
                 },
-
                 lineHeight: 1.4,
-
                 letterSpacing:
                   "0.05px",
-
                 whiteSpace: {
                   xs: "normal",
                   sm: "nowrap",
                 },
+                px: {
+                  xs: 0.5,
+                  sm: 0,
+                },
               }}
             >
-              Enter to send • Shift + Enter for new line
-              {" • "}
-              🎙 Voice input
-              {" • "}
+              Enter to send • Shift + Enter
+              for new line • 🎙 Voice input •
               📎 Attach files
             </Typography>
           </Box>
