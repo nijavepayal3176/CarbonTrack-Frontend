@@ -458,7 +458,7 @@ const Dashboard = () => {
                   "-0.8px",
               }}
             >
-               Overview
+              Dashboard Overview
             </Typography>
 
             <Typography
